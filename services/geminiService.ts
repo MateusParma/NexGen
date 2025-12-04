@@ -1,9 +1,39 @@
 import { GoogleGenAI, FunctionDeclaration, Type } from "@google/genai";
 import { ChatMessage, Lead, ProjectIdea, ProposalData } from "../types";
 
-const apiKey = process.env.API_KEY || "";
+// Função robusta para capturar a API Key em diferentes ambientes (Vite, Vercel, Local)
+const getApiKey = (): string => {
+  let key = "";
 
-const ai = new GoogleGenAI({ apiKey });
+  // 1. Tentar via import.meta.env (Padrão Vite)
+  // Usamos casting para 'any' para evitar erros de TS se os tipos do Vite não estiverem carregados
+  try {
+    const meta = (import.meta as any);
+    if (meta && meta.env) {
+      key = meta.env.VITE_API_KEY || meta.env.API_KEY || "";
+    }
+  } catch (e) {
+    // Ignora erro se import.meta não existir
+  }
+
+  if (key) return key;
+
+  // 2. Tentar via process.env (Fallback para Node/Vercel Serverless)
+  try {
+    if (typeof process !== 'undefined' && process.env) {
+      key = process.env.API_KEY || process.env.VITE_API_KEY || "";
+    }
+  } catch (e) {
+    // Ignora erro se process não estiver definido
+  }
+
+  return key;
+};
+
+const apiKey = getApiKey();
+
+// Inicializa com a chave encontrada ou uma string vazia (o erro será tratado nas chamadas)
+const ai = new GoogleGenAI({ apiKey: apiKey || "MISSING_KEY" });
 
 // Definição da ferramenta para capturar leads
 const createLeadTool: FunctionDeclaration = {
@@ -37,11 +67,12 @@ interface AiResponse {
 export const getAiConsultation = async (
   currentMessage: string, 
   history: ChatMessage[],
-  currentImage?: string // Adicionado suporte a imagem atual
+  currentImage?: string
 ): Promise<AiResponse> => {
-  if (!apiKey) {
-    console.error("API Key missing");
-    return { text: "A chave de API não está configurada. Por favor, configure a API_KEY nas variáveis de ambiente." };
+  // Verificação explícita da chave antes de tentar chamar a API
+  if (!apiKey || apiKey === "MISSING_KEY") {
+    console.error("API Key missing or invalid");
+    return { text: "Erro de Configuração: A chave de API (VITE_API_KEY) não foi encontrada. Verifique as variáveis de ambiente no Vercel." };
   }
 
   try {
@@ -101,8 +132,6 @@ export const getAiConsultation = async (
       model: 'gemini-2.5-flash',
       contents: contents,
       config: {
-        // Habilita Google Search para analisar sites e Function Calling para Leads
-        // Nota: Alguns modelos podem ter restrições ao misturar tools, mas o 2.5 Flash geralmente aceita.
         tools: [
             { functionDeclarations: [createLeadTool] },
             { googleSearch: {} } 
@@ -159,9 +188,13 @@ export const getAiConsultation = async (
 
     return { text: responseText, leadData };
 
-  } catch (error) {
+  } catch (error: any) {
     console.error("Erro ao chamar Gemini API:", error);
-    return { text: "Ocorreu um erro ao conectar com nosso consultor virtual. Verifique sua conexão ou tente novamente." };
+    // Mensagem de erro amigável dependendo do tipo de erro
+    if (error.toString().includes("API key")) {
+         return { text: "Erro de autenticação: Verifique se a chave da API (VITE_API_KEY) está correta." };
+    }
+    return { text: "Ocorreu um erro ao conectar com nosso consultor virtual. Tente novamente." };
   }
 };
 
@@ -169,7 +202,7 @@ export const getAiConsultation = async (
  * Gera uma proposta comercial estruturada (JSON) baseada nos dados do projeto
  */
 export const generateProposal = async (project: ProjectIdea): Promise<ProposalData | null> => {
-  if (!apiKey) {
+  if (!apiKey || apiKey === "MISSING_KEY") {
     console.error("API Key not found");
     return null;
   }

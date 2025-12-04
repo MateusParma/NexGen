@@ -1,6 +1,6 @@
 
 import React, { useState } from 'react';
-import { ArrowLeft, Lock, Mail, AlertCircle, Loader2, User as UserIcon, UserPlus, Ghost } from 'lucide-react';
+import { ArrowLeft, Lock, Mail, AlertCircle, Loader2, User as UserIcon, UserPlus, Ghost, Eye, EyeOff } from 'lucide-react';
 import { User } from '../types';
 
 interface LoginProps {
@@ -15,6 +15,7 @@ const Login: React.FC<LoginProps> = ({ users, onLoginSuccess, onRegister, onBack
   const [activeRole, setActiveRole] = useState<'admin' | 'client'>('client');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   
   // Form State
   const [name, setName] = useState('');
@@ -28,6 +29,7 @@ const Login: React.FC<LoginProps> = ({ users, onLoginSuccess, onRegister, onBack
     setPassword('');
     setName('');
     setConfirmPassword('');
+    setShowPassword(false);
   };
 
   const handleSwitchView = (newView: 'login' | 'register' | 'guest') => {
@@ -88,17 +90,19 @@ const Login: React.FC<LoginProps> = ({ users, onLoginSuccess, onRegister, onBack
       }
 
       // --- LOGIN LOGIC ---
-      const foundUser = users.find(u => u.email.toLowerCase() === email.toLowerCase() && u.role === activeRole);
+      // Fix: Find user by email first, ignoring role initially to allow login from any tab
+      const foundUser = users.find(u => u.email.toLowerCase() === email.toLowerCase());
 
       if (foundUser) {
         if (foundUser.password === password) {
+             // Login successful
              onLoginSuccess(foundUser);
         } else {
              setError('Senha incorreta.');
              setIsLoading(false);
         }
       } else {
-        setError('Usuário não encontrado ou senha inválida.');
+        setError('Usuário não encontrado.');
         setIsLoading(false);
       }
     }, 1000);
@@ -207,14 +211,21 @@ const Login: React.FC<LoginProps> = ({ users, onLoginSuccess, onRegister, onBack
                 <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Senha</label>
                 <div className="relative">
                   <input 
-                    type="password" 
+                    type={showPassword ? 'text' : 'password'}
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
-                    className="w-full bg-slate-800 border border-slate-700 rounded-xl p-3 pl-10 text-white focus:border-primary focus:outline-none transition-colors"
+                    className="w-full bg-slate-800 border border-slate-700 rounded-xl p-3 pl-10 pr-10 text-white focus:border-primary focus:outline-none transition-colors"
                     placeholder="••••••••"
                     required
                   />
                   <Lock className="w-5 h-5 text-slate-500 absolute left-3 top-3" />
+                  <button 
+                    type="button" 
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute right-3 top-3 text-slate-500 hover:text-white transition-colors"
+                  >
+                    {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                  </button>
                 </div>
               </div>
             </>
@@ -225,7 +236,7 @@ const Login: React.FC<LoginProps> = ({ users, onLoginSuccess, onRegister, onBack
               <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Confirmar Senha</label>
               <div className="relative">
                 <input 
-                  type="password" 
+                  type={showPassword ? 'text' : 'password'}
                   value={confirmPassword}
                   onChange={(e) => setConfirmPassword(e.target.value)}
                   className={`w-full bg-slate-800 border rounded-xl p-3 pl-10 text-white focus:outline-none transition-colors ${

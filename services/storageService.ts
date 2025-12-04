@@ -52,15 +52,35 @@ const setStorage = <T>(key: string, value: T) => {
 export const storageService = {
   // --- INICIALIZAÇÃO ---
   init: () => {
-    if (!localStorage.getItem(KEYS.USERS)) {
-      setStorage(KEYS.USERS, INITIAL_USERS);
+    // Inicializa Leads
+    if (!localStorage.getItem(KEYS.LEADS)) {
+      setStorage(KEYS.LEADS, []);
     }
+    
+    // Inicializa Projetos
     if (!localStorage.getItem(KEYS.PROJECTS)) {
       setStorage(KEYS.PROJECTS, INITIAL_PROJECTS);
     }
-    // Leads começam vazios se não existirem
-    if (!localStorage.getItem(KEYS.LEADS)) {
-      setStorage(KEYS.LEADS, []);
+
+    // --- LÓGICA DE SINCRONIZAÇÃO DE USUÁRIOS ---
+    // Garante que os usuários hardcoded (como mateus@admin.com) existam,
+    // mesmo que o localStorage já tenha sido criado anteriormente.
+    const storedUsers = getStorage<User[]>(KEYS.USERS, []);
+    
+    let hasChanges = false;
+    const finalUsers = [...storedUsers];
+
+    INITIAL_USERS.forEach(seedUser => {
+      const exists = finalUsers.find(u => u.email === seedUser.email);
+      if (!exists) {
+        finalUsers.push(seedUser);
+        hasChanges = true;
+      }
+    });
+
+    // Se não tinha nada, ou se adicionamos novos admins hardcoded
+    if (storedUsers.length === 0 || hasChanges) {
+      setStorage(KEYS.USERS, finalUsers);
     }
   },
 
