@@ -1,34 +1,31 @@
 import { GoogleGenAI, FunctionDeclaration, Type } from "@google/genai";
 import { ChatMessage, Lead, ProjectIdea, ProposalData } from "../types";
 
-// Função para capturar a API Key.
-// IMPORTANTE: Acessamos import.meta.env.VITE_API_KEY explicitamente para que o Vite
-// consiga substituir a variável estaticamente durante o build.
+// --- SISTEMA DE DIAGNÓSTICO DE CHAVE DE API ---
+
 const getApiKey = (): string => {
-  try {
+  let key = "";
+  
+  // 1. Tenta via VITE_API_KEY (Padrão Vite)
+  // @ts-ignore
+  if (import.meta.env && import.meta.env.VITE_API_KEY) {
     // @ts-ignore
-    const key = import.meta.env.VITE_API_KEY;
-    if (key) return key;
-  } catch (e) {}
-
-  try {
-    // @ts-ignore
-    const key = import.meta.env.API_KEY;
-    if (key) return key;
-  } catch (e) {}
-
-  if (typeof process !== 'undefined' && process.env) {
-    return process.env.VITE_API_KEY || process.env.API_KEY || "";
+    key = import.meta.env.VITE_API_KEY;
+  } 
+  
+  // 2. Tenta via process.env (Fallback / Node)
+  if (!key && typeof process !== 'undefined' && process.env) {
+    if (process.env.VITE_API_KEY) key = process.env.VITE_API_KEY;
+    else if (process.env.API_KEY) key = process.env.API_KEY;
   }
 
-  return "";
+  return key;
 };
 
 const apiKey = getApiKey();
 
-// Inicializa com a chave encontrada ou uma string vazia
-// O SDK requer uma chave, passamos uma string de fallback se não houver para evitar crash na inicialização
-const ai = new GoogleGenAI({ apiKey: apiKey || "MISSING_KEY" });
+// Inicializa o cliente apenas se tiver chave, senão deixa null para tratar no erro
+const ai = apiKey ? new GoogleGenAI({ apiKey }) : null;
 
 // Definição da ferramenta para capturar leads
 const createLeadTool: FunctionDeclaration = {
@@ -64,10 +61,34 @@ export const getAiConsultation = async (
   history: ChatMessage[],
   currentImage?: string
 ): Promise<AiResponse> => {
-  // Verifica a chave novamente no momento da chamada para dar feedback ao usuário
-  if (!apiKey || apiKey === "MISSING_KEY") {
+  
+  // --- DIAGNÓSTICO EM TEMPO REAL ---
+  if (!ai || !apiKey) {
     console.error("API Key missing");
-    return { text: "Erro de Configuração: A chave de API (VITE_API_KEY) não foi encontrada. Verifique se a variável de ambiente está definida no Vercel e se o projeto foi reconstruído (Redeploy)." };
+    
+    // Coleta dados para debug (sem expor a chave inteira se existir parcial)
+    const envCheck = {
+      hasImportMeta: typeof import.meta !== 'undefined',
+      // @ts-ignore
+      hasViteEnv: typeof import.meta !== 'undefined' && !!import.meta.env,
+      // @ts-ignore
+      viteKeyFound: typeof import.meta !== 'undefined' && !!import.meta.env?.VITE_API_KEY,
+      processEnvFound: typeof process !== 'undefined' && !!process.env,
+    };
+
+    return { 
+      text: `⛔ **ERRO CRÍTICO DE CONFIGURAÇÃO** ⛔\n\n` +
+            `O sistema não conseguiu encontrar a CHAVE DA API.\n\n` +
+            `**Diagnóstico Técnico:**\n` +
+            `- Ambiente Vite (import.meta): ${envCheck.hasImportMeta ? 'OK' : 'Ausente'}\n` +
+            `- Variável VITE_API_KEY: ${envCheck.viteKeyFound ? 'Encontrada' : 'NÃO ENCONTRADA'}\n` +
+            `- Process.env (Node): ${envCheck.processEnvFound ? 'OK' : 'Ausente'}\n\n` +
+            `**Solução para Vercel:**\n` +
+            `1. Vá em Settings > Environment Variables.\n` +
+            `2. Adicione a chave com o nome exato: **VITE_API_KEY**\n` +
+            `3. O valor deve começar com "AIza..."\n` +
+            `4. **IMPORTANTE:** Faça um REDEPLOY (Reconstrução) do projeto após salvar a chave.` 
+    };
   }
 
   try {
@@ -185,11 +206,22 @@ export const getAiConsultation = async (
 
   } catch (error: any) {
     console.error("Erro ao chamar Gemini API:", error);
-    // Mensagem de erro amigável dependendo do tipo de erro
-    if (error.toString().includes("API key")) {
-         return { text: "Erro de autenticação: Verifique se a chave da API (VITE_API_KEY) está correta." };
+    
+    // Tratamento de Erros Detalhado para o Usuário
+    let errorMsg = "Ocorreu um erro desconhecido.";
+    const errorString = error.toString();
+
+    if (errorString.includes("API key")) {
+        errorMsg = "❌ **Erro de Chave de API (403/400):**\nA chave configurada é inválida ou foi rejeitada pelo Google. Verifique se copiou corretamente.";
+    } else if (errorString.includes("404")) {
+        errorMsg = "❌ **Erro de Modelo (404):**\nO modelo 'gemini-2.5-flash' não está disponível para esta chave ou região.";
+    } else if (errorString.includes("500") || errorString.includes("503")) {
+        errorMsg = "⚠️ **Erro no Servidor do Google:**\nO Gemini está temporariamente indisponível. Tente novamente em alguns segundos.";
+    } else {
+        errorMsg = `⚠️ **Erro Técnico:**\n${error.message || errorString}`;
     }
-    return { text: "Ocorreu um erro ao conectar com nosso consultor virtual. Tente novamente." };
+
+    return { text: errorMsg };
   }
 };
 
@@ -197,8 +229,8 @@ export const getAiConsultation = async (
  * Gera uma proposta comercial estruturada (JSON) baseada nos dados do projeto
  */
 export const generateProposal = async (project: ProjectIdea): Promise<ProposalData | null> => {
-  if (!apiKey || apiKey === "MISSING_KEY") {
-    console.error("API Key not found");
+  if (!ai) {
+    console.error("AI not initialized");
     return null;
   }
 
