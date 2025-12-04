@@ -1,38 +1,33 @@
 import { GoogleGenAI, FunctionDeclaration, Type } from "@google/genai";
 import { ChatMessage, Lead, ProjectIdea, ProposalData } from "../types";
 
-// Função robusta para capturar a API Key em diferentes ambientes (Vite, Vercel, Local)
+// Função para capturar a API Key.
+// IMPORTANTE: Acessamos import.meta.env.VITE_API_KEY explicitamente para que o Vite
+// consiga substituir a variável estaticamente durante o build.
 const getApiKey = (): string => {
-  let key = "";
-
-  // 1. Tentar via import.meta.env (Padrão Vite)
-  // Usamos casting para 'any' para evitar erros de TS se os tipos do Vite não estiverem carregados
   try {
-    const meta = (import.meta as any);
-    if (meta && meta.env) {
-      key = meta.env.VITE_API_KEY || meta.env.API_KEY || "";
-    }
-  } catch (e) {
-    // Ignora erro se import.meta não existir
+    // @ts-ignore
+    const key = import.meta.env.VITE_API_KEY;
+    if (key) return key;
+  } catch (e) {}
+
+  try {
+    // @ts-ignore
+    const key = import.meta.env.API_KEY;
+    if (key) return key;
+  } catch (e) {}
+
+  if (typeof process !== 'undefined' && process.env) {
+    return process.env.VITE_API_KEY || process.env.API_KEY || "";
   }
 
-  if (key) return key;
-
-  // 2. Tentar via process.env (Fallback para Node/Vercel Serverless)
-  try {
-    if (typeof process !== 'undefined' && process.env) {
-      key = process.env.API_KEY || process.env.VITE_API_KEY || "";
-    }
-  } catch (e) {
-    // Ignora erro se process não estiver definido
-  }
-
-  return key;
+  return "";
 };
 
 const apiKey = getApiKey();
 
-// Inicializa com a chave encontrada ou uma string vazia (o erro será tratado nas chamadas)
+// Inicializa com a chave encontrada ou uma string vazia
+// O SDK requer uma chave, passamos uma string de fallback se não houver para evitar crash na inicialização
 const ai = new GoogleGenAI({ apiKey: apiKey || "MISSING_KEY" });
 
 // Definição da ferramenta para capturar leads
@@ -69,10 +64,10 @@ export const getAiConsultation = async (
   history: ChatMessage[],
   currentImage?: string
 ): Promise<AiResponse> => {
-  // Verificação explícita da chave antes de tentar chamar a API
+  // Verifica a chave novamente no momento da chamada para dar feedback ao usuário
   if (!apiKey || apiKey === "MISSING_KEY") {
-    console.error("API Key missing or invalid");
-    return { text: "Erro de Configuração: A chave de API (VITE_API_KEY) não foi encontrada. Verifique as variáveis de ambiente no Vercel." };
+    console.error("API Key missing");
+    return { text: "Erro de Configuração: A chave de API (VITE_API_KEY) não foi encontrada. Verifique se a variável de ambiente está definida no Vercel e se o projeto foi reconstruído (Redeploy)." };
   }
 
   try {
