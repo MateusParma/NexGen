@@ -1,3 +1,4 @@
+
 import { GoogleGenAI, FunctionDeclaration, Type } from "@google/genai";
 import { ChatMessage, Lead, ProjectIdea, ProposalData } from "../types";
 
@@ -149,7 +150,7 @@ export const getAiConsultation = async (
       contents: contents,
       config: {
         tools: [
-            { functionDeclarations: [createLeadTool] },
+            // { functionDeclarations: [createLeadTool] }, // DESATIVADO: Conflito com Google Search
             { googleSearch: {} } 
         ],
         systemInstruction: `Você é um Consultor Sênior da "NexGen Digital", agência de tecnologia.
@@ -166,7 +167,15 @@ export const getAiConsultation = async (
         OBJETIVO:
         1. Analisar visualmente qualquer imagem que o usuário enviar e dar feedback técnico/criativo.
         2. Se o usuário mandar um link, use o Google Search para entender o contexto do site.
-        3. CAPTURAR LEADS: Se houver interesse comercial, peça Nome e Contato e use a tool 'createLead'.
+        3. CAPTAÇÃO DE LEAD/ORÇAMENTO: Se o cliente quiser um orçamento, explique que existem duas opções e guie-o:
+           
+           - **Opção 1 (Recomendada para Projetos): Área do Cliente (Login)**
+             Explique que ele deve clicar em "Login" no menu. Lá ele pode criar uma conta, cadastrar a ideia do projeto detalhadamente (com imagens, arquivos) e enviar um pedido de orçamento formal direto pelo painel.
+           
+           - **Opção 2 (Rápida): Formulário de Contato**
+             Para dúvidas rápidas, ele pode usar o formulário no final da página ou clicar no botão "Orçamento".
+
+           NÃO tente coletar os dados automaticamente pelo chat.
 
         TOM DE VOZ:
         Profissional, perspicaz, especialista em tecnologia e design.`,
@@ -191,7 +200,7 @@ export const getAiConsultation = async (
         if (hasLinks) responseText += links;
     }
 
-    // Verifica se houve chamada de função (Function Calling)
+    // Verifica se houve chamada de função (Function Calling) - CÓDIGO MANTIDO MAS NÃO SERÁ ACIONADO
     if (response.functionCalls && response.functionCalls.length > 0) {
       const call = response.functionCalls[0];
       if (call.name === 'createLead') {
@@ -217,6 +226,8 @@ export const getAiConsultation = async (
         errorMsg = "❌ **Erro de Modelo (404):**\nO modelo 'gemini-2.5-flash' não está disponível para esta chave ou região.";
     } else if (errorString.includes("500") || errorString.includes("503")) {
         errorMsg = "⚠️ **Erro no Servidor do Google:**\nO Gemini está temporariamente indisponível. Tente novamente em alguns segundos.";
+    } else if (errorString.includes("INVALID_ARGUMENT")) {
+        errorMsg = "⚠️ **Erro de Configuração:**\nConflito de ferramentas (Search vs Function Calling). Contacte o admin.";
     } else {
         errorMsg = `⚠️ **Erro Técnico:**\n${error.message || errorString}`;
     }
