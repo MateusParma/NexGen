@@ -11,6 +11,7 @@ const KEYS = {
 const INITIAL_USERS: User[] = [
   { id: 'admin-1', name: 'Admin Principal', email: 'admin@nexgen.com', role: 'admin', password: '123' },
   { id: 'admin-2', name: 'Admin Parma', email: 'parma@gmail.com', role: 'admin', password: '123' },
+  { id: 'admin-3', name: 'Mateus Admin', email: 'mateus@admin.com', role: 'admin', password: '1234' },
   { id: 'client-1', name: 'João Silva', email: 'joao@cliente.com', role: 'client', password: '123' },
 ];
 

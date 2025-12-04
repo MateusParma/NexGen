@@ -141,6 +141,12 @@ function App() {
     }
   };
 
+  const handleRegisterUser = (user: User) => {
+    storageService.saveUser(user);
+    setUsers(prev => [...prev, user]);
+    handleLoginSuccess(user);
+  };
+
   const handleLogout = () => {
     setCurrentUser(null);
     localStorage.removeItem('nexgen_session_user');
@@ -162,7 +168,8 @@ function App() {
     return (
       <Login 
         users={users} // Passa usuários reais para validação
-        onLoginSuccess={handleLoginSuccess} 
+        onLoginSuccess={handleLoginSuccess}
+        onRegister={handleRegisterUser}
         onBack={() => setCurrentPage('home')} 
       />
     );

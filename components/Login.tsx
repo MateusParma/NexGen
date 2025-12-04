@@ -1,17 +1,18 @@
 
 import React, { useState } from 'react';
-import { ArrowLeft, Lock, Mail, Chrome, AlertCircle, Loader2, User as UserIcon, UserPlus, CheckCircle } from 'lucide-react';
+import { ArrowLeft, Lock, Mail, AlertCircle, Loader2, User as UserIcon, UserPlus, Ghost } from 'lucide-react';
 import { User } from '../types';
 
 interface LoginProps {
   users: User[];
   onLoginSuccess: (user: User) => void;
+  onRegister: (user: User) => void;
   onBack: () => void;
 }
 
-const Login: React.FC<LoginProps> = ({ users, onLoginSuccess, onBack }) => {
-  const [activeTab, setActiveTab] = useState<'admin' | 'client'>('client');
-  const [isRegistering, setIsRegistering] = useState(false);
+const Login: React.FC<LoginProps> = ({ users, onLoginSuccess, onRegister, onBack }) => {
+  const [view, setView] = useState<'login' | 'register' | 'guest'>('login');
+  const [activeRole, setActiveRole] = useState<'admin' | 'client'>('client');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
   
@@ -29,8 +30,8 @@ const Login: React.FC<LoginProps> = ({ users, onLoginSuccess, onBack }) => {
     setConfirmPassword('');
   };
 
-  const toggleMode = () => {
-    setIsRegistering(!isRegistering);
+  const handleSwitchView = (newView: 'login' | 'register' | 'guest') => {
+    setView(newView);
     resetForm();
   };
 
@@ -40,8 +41,26 @@ const Login: React.FC<LoginProps> = ({ users, onLoginSuccess, onBack }) => {
     setIsLoading(true);
 
     setTimeout(() => {
+      // --- GUEST LOGIN ---
+      if (view === 'guest') {
+        if (!name.trim()) {
+            setError('Por favor, informe seu nome.');
+            setIsLoading(false);
+            return;
+        }
+        const guestUser: User = {
+            id: `guest-${Date.now()}`,
+            name: name,
+            email: 'guest@nexgen.com',
+            role: 'guest',
+        };
+        onRegister(guestUser); // Trata convidado como registro temporário
+        setIsLoading(false);
+        return;
+      }
+
       // --- REGISTER LOGIC ---
-      if (isRegistering) {
+      if (view === 'register') {
         if (password !== confirmPassword) {
           setError('As senhas não coincidem.');
           setIsLoading(false);
@@ -55,12 +74,6 @@ const Login: React.FC<LoginProps> = ({ users, onLoginSuccess, onBack }) => {
            return;
         }
 
-        // Criar novo usuário (o App.tsx não trata isso diretamente neste callback simples, 
-        // mas em um app real aqui chamariamos uma API. Para simplificar e persistir, 
-        // vamos simular o sucesso e logar, mas o ideal seria salvar via App.tsx.
-        // Como o LoginProps só tem onLoginSuccess, vamos permitir o login com o objeto User,
-        // mas para persistir o novo usuário, precisaríamos de uma prop onRegister.
-        // VOU AJUSTAR PARA PASSAR O NOVO USER NO onLoginSuccess e o App trata se não existir.
         const newUser: User = {
           id: `client-${Date.now()}`,
           name: name,
@@ -69,25 +82,13 @@ const Login: React.FC<LoginProps> = ({ users, onLoginSuccess, onBack }) => {
           password: password
         };
         
-        // *Nota*: No App.tsx, precisaremos salvar este usuário se ele não existir ao logar
-        // Ou idealmente ter um método onRegister. Por ora, vamos focar no login.
-        // Para resolver "Sistema de Banco de Dados", vou assumir que o cadastro aqui é apenas visual
-        // se não tivermos onRegister. Mas vamos fazer direito:
-        // No mundo real, o onLoginSuccess apenas define a sessão. 
-        // Vamos permitir que o usuário entre, mas em um refresh ele sumiria se não salvarmos.
-        // Vou alertar o usuário que precisa de um admin para criar conta persistente ou ajustar o App.
-        // MELHOR: Vou assumir que o usuário "Client Mock" sempre funciona ou usar um usuário fixo.
-        
-        // POREM, o usuário pediu para a informação não sumir.
-        // Então vamos simular que o cadastro funcionou e chamar onLoginSuccess. 
-        // O App.tsx pode detectar que é um user novo e salvar.
-        onLoginSuccess(newUser); 
+        onRegister(newUser);
         setIsLoading(false);
         return;
       }
 
       // --- LOGIN LOGIC ---
-      const foundUser = users.find(u => u.email.toLowerCase() === email.toLowerCase() && u.role === activeTab);
+      const foundUser = users.find(u => u.email.toLowerCase() === email.toLowerCase() && u.role === activeRole);
 
       if (foundUser) {
         if (foundUser.password === password) {
@@ -97,21 +98,8 @@ const Login: React.FC<LoginProps> = ({ users, onLoginSuccess, onBack }) => {
              setIsLoading(false);
         }
       } else {
-        // Fallback para demonstração se não tiver usuários cadastrados (seed)
-        if (password === '123' || password === '1234') {
-             // Cria usuário temporário se for a primeira vez e não existir no banco
-             const tempUser: User = {
-                 id: 'temp-' + Date.now(),
-                 name: 'Usuário Demo',
-                 email: email,
-                 role: activeTab,
-                 password: password
-             };
-             onLoginSuccess(tempUser);
-        } else {
-            setError('Usuário não encontrado ou senha inválida.');
-            setIsLoading(false);
-        }
+        setError('Usuário não encontrado ou senha inválida.');
+        setIsLoading(false);
       }
     }, 1000);
   };
@@ -128,18 +116,18 @@ const Login: React.FC<LoginProps> = ({ users, onLoginSuccess, onBack }) => {
 
       <div className="w-full max-w-md bg-slate-900/50 backdrop-blur-xl border border-slate-700 rounded-3xl p-8 shadow-2xl relative">
         
-        {!isRegistering && (
+        {view === 'login' && (
           <div className="flex bg-slate-800 p-1 rounded-xl mb-8">
             <button 
-              onClick={() => { setActiveTab('client'); setError(''); }}
-              className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-lg text-sm font-bold transition-all ${activeTab === 'client' ? 'bg-primary text-white shadow-lg' : 'text-slate-400 hover:text-white'}`}
+              onClick={() => { setActiveRole('client'); setError(''); }}
+              className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-lg text-sm font-bold transition-all ${activeRole === 'client' ? 'bg-primary text-white shadow-lg' : 'text-slate-400 hover:text-white'}`}
             >
               <UserIcon className="w-4 h-4" />
               Sou Cliente
             </button>
             <button 
-              onClick={() => { setActiveTab('admin'); setError(''); }}
-              className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-lg text-sm font-bold transition-all ${activeTab === 'admin' ? 'bg-purple-600 text-white shadow-lg' : 'text-slate-400 hover:text-white'}`}
+              onClick={() => { setActiveRole('admin'); setError(''); }}
+              className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-lg text-sm font-bold transition-all ${activeRole === 'admin' ? 'bg-purple-600 text-white shadow-lg' : 'text-slate-400 hover:text-white'}`}
             >
               <Lock className="w-4 h-4" />
               Área Restrita
@@ -149,18 +137,27 @@ const Login: React.FC<LoginProps> = ({ users, onLoginSuccess, onBack }) => {
 
         <div className="text-center mb-8">
           <h1 className="text-2xl font-bold text-white flex items-center justify-center gap-2">
-            {isRegistering ? (
+            {view === 'register' && (
               <>
                 <UserPlus className="w-6 h-6 text-green-400" />
                 Criar Nova Conta
               </>
-            ) : (
-              activeTab === 'admin' ? 'Painel de Gestão' : 'Login do Cliente'
+            )}
+            {view === 'guest' && (
+              <>
+                <Ghost className="w-6 h-6 text-yellow-400" />
+                Entrar como Convidado
+              </>
+            )}
+            {view === 'login' && (
+               activeRole === 'admin' ? 'Painel de Gestão' : 'Login do Cliente'
             )}
           </h1>
-          <p className="text-slate-400 text-sm mt-2">
-             Use <strong>email@exemplo.com</strong> e senha <strong>123</strong> para testar se não tiver conta.
-          </p>
+          {view === 'login' && (
+            <p className="text-slate-400 text-sm mt-2">
+             Entre para gerenciar seus projetos.
+            </p>
+          )}
         </div>
 
         {error && (
@@ -172,9 +169,9 @@ const Login: React.FC<LoginProps> = ({ users, onLoginSuccess, onBack }) => {
 
         <form onSubmit={handleSubmit} className="space-y-4">
           
-          {isRegistering && (
+          {(view === 'register' || view === 'guest') && (
             <div className="space-y-2 animate-in fade-in slide-in-from-left-2">
-              <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Nome Completo</label>
+              <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Como podemos te chamar?</label>
               <div className="relative">
                 <input 
                   type="text" 
@@ -189,37 +186,41 @@ const Login: React.FC<LoginProps> = ({ users, onLoginSuccess, onBack }) => {
             </div>
           )}
 
-          <div className="space-y-2">
-            <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Email</label>
-            <div className="relative">
-              <input 
-                type="email" 
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                className="w-full bg-slate-800 border border-slate-700 rounded-xl p-3 pl-10 text-white focus:border-primary focus:outline-none transition-colors"
-                placeholder="seu@email.com"
-                required
-              />
-              <Mail className="w-5 h-5 text-slate-500 absolute left-3 top-3" />
-            </div>
-          </div>
+          {view !== 'guest' && (
+            <>
+              <div className="space-y-2">
+                <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Email</label>
+                <div className="relative">
+                  <input 
+                    type="email" 
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    className="w-full bg-slate-800 border border-slate-700 rounded-xl p-3 pl-10 text-white focus:border-primary focus:outline-none transition-colors"
+                    placeholder="seu@email.com"
+                    required
+                  />
+                  <Mail className="w-5 h-5 text-slate-500 absolute left-3 top-3" />
+                </div>
+              </div>
 
-          <div className="space-y-2">
-            <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Senha</label>
-            <div className="relative">
-              <input 
-                type="password" 
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className="w-full bg-slate-800 border border-slate-700 rounded-xl p-3 pl-10 text-white focus:border-primary focus:outline-none transition-colors"
-                placeholder="••••••••"
-                required
-              />
-              <Lock className="w-5 h-5 text-slate-500 absolute left-3 top-3" />
-            </div>
-          </div>
+              <div className="space-y-2">
+                <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Senha</label>
+                <div className="relative">
+                  <input 
+                    type="password" 
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    className="w-full bg-slate-800 border border-slate-700 rounded-xl p-3 pl-10 text-white focus:border-primary focus:outline-none transition-colors"
+                    placeholder="••••••••"
+                    required
+                  />
+                  <Lock className="w-5 h-5 text-slate-500 absolute left-3 top-3" />
+                </div>
+              </div>
+            </>
+          )}
 
-          {isRegistering && (
+          {view === 'register' && (
             <div className="space-y-2 animate-in fade-in slide-in-from-left-2">
               <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Confirmar Senha</label>
               <div className="relative">
@@ -244,20 +245,50 @@ const Login: React.FC<LoginProps> = ({ users, onLoginSuccess, onBack }) => {
             type="submit" 
             disabled={isLoading}
             className={`w-full font-bold py-3.5 rounded-xl transition-all shadow-lg flex items-center justify-center gap-2 mt-4 ${
-              isRegistering
+              view === 'register'
                 ? 'bg-green-600 hover:bg-green-500 shadow-green-900/20 text-white'
-                : activeTab === 'admin' 
-                  ? 'bg-purple-600 hover:bg-purple-500 shadow-purple-900/20 text-white' 
-                  : 'bg-primary hover:bg-blue-600 shadow-blue-900/20 text-white'
+                : view === 'guest'
+                  ? 'bg-yellow-500 hover:bg-yellow-400 shadow-yellow-900/20 text-black'
+                  : activeRole === 'admin' 
+                    ? 'bg-purple-600 hover:bg-purple-500 shadow-purple-900/20 text-white' 
+                    : 'bg-primary hover:bg-blue-600 shadow-blue-900/20 text-white'
             }`}
           >
             {isLoading ? (
               <Loader2 className="w-5 h-5 animate-spin" />
             ) : (
-              isRegistering ? 'Cadastrar Conta' : 'Entrar'
+              view === 'register' ? 'Cadastrar Conta' : view === 'guest' ? 'Entrar como Convidado' : 'Entrar'
             )}
           </button>
         </form>
+
+        <div className="mt-8 space-y-3">
+          {view === 'login' && (
+            <>
+              <button 
+                onClick={() => handleSwitchView('register')}
+                className="w-full text-center text-sm text-slate-400 hover:text-white transition-colors border border-slate-700 hover:border-slate-500 rounded-lg py-2"
+              >
+                Não tem conta? <span className="text-primary font-bold">Criar agora</span>
+              </button>
+              <button 
+                 onClick={() => handleSwitchView('guest')}
+                 className="w-full text-center text-xs text-slate-500 hover:text-slate-300 transition-colors uppercase tracking-widest font-semibold"
+              >
+                Continuar sem senha (Convidado)
+              </button>
+            </>
+          )}
+
+          {(view === 'register' || view === 'guest') && (
+             <button 
+                onClick={() => handleSwitchView('login')}
+                className="w-full text-center text-sm text-slate-400 hover:text-white transition-colors"
+              >
+                Já tem conta? <span className="text-primary font-bold">Fazer Login</span>
+              </button>
+          )}
+        </div>
       </div>
     </div>
   );

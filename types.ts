@@ -40,7 +40,7 @@ export interface ChatMessage {
   image?: string; // Base64 image string
 }
 
-export type UserRole = 'admin' | 'client';
+export type UserRole = 'admin' | 'client' | 'guest';
 
 export interface User {
   id: string;

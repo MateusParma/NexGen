@@ -1,25 +1,7 @@
-import { GoogleGenAI, FunctionDeclaration, Type, SchemaType, Tool } from "@google/genai";
+import { GoogleGenAI, FunctionDeclaration, Type } from "@google/genai";
 import { ChatMessage, Lead, ProjectIdea, ProposalData } from "../types";
 
-// Lógica robusta para recuperar a API Key (Node process ou Vite import.meta)
-// Verifica se 'process' está definido para evitar crash no navegador (ReferenceError)
-const getApiKey = () => {
-  let key = '';
-  try {
-    if (typeof process !== 'undefined' && process.env) {
-      key = process.env.API_KEY || '';
-    }
-  } catch (e) {
-    // process not defined
-  }
-  
-  if (!key && (import.meta as any).env) {
-    key = (import.meta as any).env.VITE_API_KEY || '';
-  }
-  return key;
-};
-
-const apiKey = getApiKey();
+const apiKey = process.env.API_KEY || "";
 
 const ai = new GoogleGenAI({ apiKey });
 
@@ -58,23 +40,30 @@ export const getAiConsultation = async (
   currentImage?: string // Adicionado suporte a imagem atual
 ): Promise<AiResponse> => {
   if (!apiKey) {
-    return { text: "A chave de API não está configurada. Verifique as variáveis de ambiente (API_KEY ou VITE_API_KEY)." };
+    console.error("API Key missing");
+    return { text: "A chave de API não está configurada. Por favor, configure a API_KEY nas variáveis de ambiente." };
   }
 
   try {
     // Constrói o conteúdo multimodal para a API
-    const contents = history.map(msg => {
-      const parts: any[] = [{ text: msg.text }];
+    const contents: any[] = history.map(msg => {
+      const parts: any[] = [];
+      
       if (msg.image) {
         // Remove prefixo data:image/jpeg;base64, se existir
         const base64Data = msg.image.split(',')[1] || msg.image;
-        parts.unshift({
+        parts.push({
             inlineData: {
                 mimeType: 'image/jpeg',
                 data: base64Data
             }
         });
       }
+      
+      if (msg.text && msg.text.trim()) {
+        parts.push({ text: msg.text });
+      }
+      
       return {
         role: msg.role,
         parts: parts
@@ -82,15 +71,25 @@ export const getAiConsultation = async (
     });
 
     // Adiciona a mensagem atual
-    const currentParts: any[] = [{ text: currentMessage }];
+    const currentParts: any[] = [];
+    
     if (currentImage) {
         const base64Data = currentImage.split(',')[1] || currentImage;
-        currentParts.unshift({
+        currentParts.push({
             inlineData: {
                 mimeType: 'image/jpeg',
                 data: base64Data
             }
         });
+    }
+
+    if (currentMessage && currentMessage.trim()) {
+        currentParts.push({ text: currentMessage });
+    }
+
+    // Se não houver conteúdo (ex: envio vazio), retorna erro
+    if (currentParts.length === 0) {
+        return { text: "Por favor, envie uma mensagem de texto ou uma imagem." };
     }
 
     contents.push({
@@ -103,6 +102,7 @@ export const getAiConsultation = async (
       contents: contents,
       config: {
         // Habilita Google Search para analisar sites e Function Calling para Leads
+        // Nota: Alguns modelos podem ter restrições ao misturar tools, mas o 2.5 Flash geralmente aceita.
         tools: [
             { functionDeclarations: [createLeadTool] },
             { googleSearch: {} } 
@@ -135,11 +135,11 @@ export const getAiConsultation = async (
     // Tratamento de Grounding (Links do Google Search)
     const groundingChunks = response.candidates?.[0]?.groundingMetadata?.groundingChunks;
     if (groundingChunks) {
-        let links = "\n\nFontes consultadas:\n";
+        let links = "\n\n**Fontes consultadas:**\n";
         let hasLinks = false;
         groundingChunks.forEach((chunk: any) => {
             if (chunk.web?.uri) {
-                links += `- ${chunk.web.title}: ${chunk.web.uri}\n`;
+                links += `- [${chunk.web.title}](${chunk.web.uri})\n`;
                 hasLinks = true;
             }
         });
@@ -161,7 +161,7 @@ export const getAiConsultation = async (
 
   } catch (error) {
     console.error("Erro ao chamar Gemini API:", error);
-    return { text: "Ocorreu um erro ao conectar com nosso consultor virtual. Tente novamente mais tarde." };
+    return { text: "Ocorreu um erro ao conectar com nosso consultor virtual. Verifique sua conexão ou tente novamente." };
   }
 };
 
