@@ -1,9 +1,25 @@
-
 import { GoogleGenAI, FunctionDeclaration, Type, SchemaType, Tool } from "@google/genai";
 import { ChatMessage, Lead, ProjectIdea, ProposalData } from "../types";
 
 // Lógica robusta para recuperar a API Key (Node process ou Vite import.meta)
-const apiKey = process.env.API_KEY || (import.meta as any).env?.VITE_API_KEY || '';
+// Verifica se 'process' está definido para evitar crash no navegador (ReferenceError)
+const getApiKey = () => {
+  let key = '';
+  try {
+    if (typeof process !== 'undefined' && process.env) {
+      key = process.env.API_KEY || '';
+    }
+  } catch (e) {
+    // process not defined
+  }
+  
+  if (!key && (import.meta as any).env) {
+    key = (import.meta as any).env.VITE_API_KEY || '';
+  }
+  return key;
+};
+
+const apiKey = getApiKey();
 
 const ai = new GoogleGenAI({ apiKey });
 
