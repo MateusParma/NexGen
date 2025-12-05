@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import Navbar from './components/Navbar';
 import Hero from './components/Hero';
@@ -201,6 +200,7 @@ function App() {
         onSaveIdea={handleSaveProject}
         onDeleteIdea={handleDeleteProject}
         onViewProject={handleViewProject}
+        onNavigate={handleNavigate}
       />
     );
   }

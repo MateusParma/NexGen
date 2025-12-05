@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Menu, X, Sparkles, User, Lock, LayoutDashboard, LogIn } from 'lucide-react';
 import { PageView, User as UserType } from '../types';
@@ -36,12 +35,23 @@ const Navbar: React.FC<NavbarProps> = ({ onNavigate, currentUser, onLogout }) =>
     }, 100);
   };
 
+  const handleBudgetClick = (e: React.MouseEvent) => {
+    e.preventDefault();
+    // Fluxo: Login -> User Dashboard -> Criar Projeto
+    if (currentUser) {
+      onNavigate(currentUser.role === 'admin' ? 'admin-dashboard' : 'user-dashboard');
+    } else {
+      onNavigate('auth-login');
+    }
+    setIsMobileMenuOpen(false);
+  };
+
   const navLinks = [
     { name: 'Início', id: 'home' },
     { name: 'Serviços', id: 'services' },
     { name: 'Expertise AI', id: 'ai-demo' },
     { name: 'Portfólio', id: 'portfolio' },
-    // Contato removido conforme solicitado
+    // Contato removido da navegação principal para forçar fluxo de orçamento
   ];
 
   return (
@@ -97,13 +107,12 @@ const Navbar: React.FC<NavbarProps> = ({ onNavigate, currentUser, onLogout }) =>
             </button>
           )}
 
-          <a 
-            href="#contact" 
-            onClick={(e) => handleNavClick(e, 'contact')}
+          <button 
+            onClick={handleBudgetClick}
             className="bg-primary hover:bg-blue-600 text-white px-5 py-2 rounded-full font-semibold transition-all transform hover:scale-105 shadow-lg shadow-blue-900/20"
           >
             Orçamento
-          </a>
+          </button>
         </div>
 
         {/* Mobile Toggle */}
@@ -152,6 +161,13 @@ const Navbar: React.FC<NavbarProps> = ({ onNavigate, currentUser, onLogout }) =>
               Login
             </button>
           )}
+
+          <button 
+            onClick={handleBudgetClick}
+            className="w-full text-center bg-primary hover:bg-blue-600 text-white px-5 py-3 rounded-xl font-semibold mt-2"
+          >
+            Pedir Orçamento
+          </button>
         </div>
       )}
     </nav>

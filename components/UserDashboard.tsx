@@ -1,7 +1,6 @@
-
 import React, { useState } from 'react';
-import { User, ProjectIdea } from '../types';
-import { ArrowLeft, LogOut, Plus, Trash2, Eye, Link as LinkIcon, Upload, X, ImageIcon, Loader2 } from 'lucide-react';
+import { User, ProjectIdea, PageView } from '../types';
+import { ArrowLeft, LogOut, Plus, Trash2, Eye, Link as LinkIcon, Upload, X, ImageIcon, Loader2, Bot, Sparkles } from 'lucide-react';
 
 interface UserDashboardProps {
   currentUser: User;
@@ -11,6 +10,7 @@ interface UserDashboardProps {
   onSaveIdea: (idea: ProjectIdea) => void;
   onDeleteIdea: (id: string) => void;
   onViewProject: (project: ProjectIdea) => void;
+  onNavigate: (page: PageView) => void; // Adicionado para navegar para o consultor
 }
 
 const UserDashboard: React.FC<UserDashboardProps> = ({ 
@@ -20,7 +20,8 @@ const UserDashboard: React.FC<UserDashboardProps> = ({
     ideas, 
     onSaveIdea, 
     onDeleteIdea, 
-    onViewProject 
+    onViewProject,
+    onNavigate
 }) => {
   const [showForm, setShowForm] = useState(false);
   
@@ -129,15 +130,24 @@ const UserDashboard: React.FC<UserDashboardProps> = ({
         </div>
 
         {/* Toolbar */}
-        <div className="flex justify-between items-center mb-8">
+        <div className="flex flex-col md:flex-row justify-between items-center mb-8 gap-4">
             <h2 className="text-xl font-bold text-white">Meus Projetos</h2>
-            <button 
-              onClick={() => setShowForm(!showForm)}
-              className="flex items-center gap-2 px-6 py-3 bg-primary hover:bg-blue-600 text-white rounded-xl transition-all shadow-lg shadow-blue-900/20"
-            >
-              <Plus className="w-5 h-5" />
-              Criar Novo Projeto
-            </button>
+            <div className="flex gap-4 w-full md:w-auto">
+               <button 
+                onClick={() => onNavigate('ai-consultant')}
+                className="flex-1 md:flex-none flex items-center justify-center gap-2 px-6 py-3 bg-purple-600 hover:bg-purple-500 text-white rounded-xl transition-all shadow-lg shadow-purple-900/20"
+              >
+                <Bot className="w-5 h-5" />
+                Usar Consultor IA
+              </button>
+              <button 
+                onClick={() => setShowForm(!showForm)}
+                className="flex-1 md:flex-none flex items-center justify-center gap-2 px-6 py-3 bg-primary hover:bg-blue-600 text-white rounded-xl transition-all shadow-lg shadow-blue-900/20"
+              >
+                <Plus className="w-5 h-5" />
+                Criar Novo Projeto
+              </button>
+            </div>
         </div>
 
         {/* Form New Idea */}
@@ -273,12 +283,21 @@ const UserDashboard: React.FC<UserDashboardProps> = ({
             <Upload className="w-16 h-16 text-slate-600 mx-auto mb-4" />
             <h3 className="text-xl font-bold text-slate-300">Nenhum projeto criado ainda</h3>
             <p className="text-slate-500 mb-6">Comece criando sua primeira ideia para receber um orçamento.</p>
-            <button 
-              onClick={() => setShowForm(true)}
-              className="px-6 py-2 bg-slate-700 hover:bg-slate-600 text-white rounded-lg transition-colors"
-            >
-              Criar Agora
-            </button>
+            <div className="flex justify-center gap-4">
+               <button 
+                onClick={() => onNavigate('ai-consultant')}
+                className="flex items-center gap-2 px-6 py-3 bg-purple-600/20 hover:bg-purple-600/40 text-purple-400 rounded-lg transition-colors border border-purple-500/30"
+              >
+                <Sparkles className="w-4 h-4" />
+                Ajuda da IA
+              </button>
+              <button 
+                onClick={() => setShowForm(true)}
+                className="px-6 py-3 bg-slate-700 hover:bg-slate-600 text-white rounded-lg transition-colors"
+              >
+                Criar Manualmente
+              </button>
+            </div>
           </div>
         ) : (
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -332,7 +351,7 @@ const UserDashboard: React.FC<UserDashboardProps> = ({
                     className="w-full py-3 bg-slate-700 hover:bg-primary text-white rounded-xl font-medium transition-colors flex items-center justify-center gap-2 group-hover:shadow-lg"
                   >
                     <Eye className="w-4 h-4" />
-                    Ver Detalhes & PDF
+                    Ver Detalhes & Pedir Orçamento
                   </button>
                 </div>
               </div>
