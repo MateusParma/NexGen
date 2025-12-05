@@ -1,3 +1,4 @@
+
 import { GoogleGenAI, FunctionDeclaration, Type } from "@google/genai";
 import { ChatMessage, Lead, ProjectIdea, ProposalData } from "../types";
 
@@ -236,114 +237,67 @@ export const getAiConsultation = async (
 };
 
 /**
- * Gera uma proposta comercial estruturada (JSON) baseada nos dados do projeto
- * Retorna um objeto com status e dados ou erro
+ * Gera uma proposta comercial SIMPLIFICADA E RÁPIDA (JSON)
  */
 export const generateProposal = async (project: ProjectIdea): Promise<{ success: boolean; data?: ProposalData; error?: string }> => {
   if (!ai) {
     return { success: false, error: "Chave de API não configurada no sistema." };
   }
 
-  // Prepara o prompt
+  // Prompt simplificado e direto para evitar timeouts
   const prompt = `
-    Aja como um Diretor de Criação e Vendas da NexGen Digital.
-    Analise este projeto e crie os dados para uma proposta comercial premium estilo Apple/McKinsey.
+    Aja como um Vendedor Sênior. Gere uma Proposta Comercial JSON para este projeto.
+    
+    PROJETO: ${project.title || 'Novo Projeto'}
+    DESCRIÇÃO: ${project.description || 'Desenvolvimento sob medida'}
+    ORÇAMENTO: ${project.budgetRange || 'A definir'}
+    FEATURES: ${project.features?.join(', ') || 'Padrao'}
 
-    DADOS DO PROJETO:
-    Projeto: ${project.title || 'Projeto Customizado'}
-    Descrição: ${project.description || 'Desenvolvimento de solução digital sob medida.'}
-    Features: ${project.features?.join(', ') || 'A definir na reunião técnica.'}
-    Orçamento do Cliente: ${project.budgetRange || 'A definir'}
-    
-    IMPORTANTE: Retorne APENAS o JSON válido. Não use blocos de código markdown.
-    
-    Gere um JSON VÁLIDO seguindo estritamente este esquema:
+    REGRAS CRÍTICAS:
+    1. Responda APENAS com o JSON. Sem markdown.
+    2. Seja breve.
+    3. Se faltar dados, INVENTE algo profissional e genérico.
+
+    ESTRUTURA JSON OBRIGATÓRIA:
     {
-      "title": "Titulo Comercial Curto e Impactante",
-      "executiveSummary": "Resumo executivo persuasivo (max 300 chars)",
+      "title": "Titulo Comercial Atraente",
+      "executiveSummary": "Resumo em 2 frases no máximo focando em valor.",
       "solutionHighlights": ["Destaque 1", "Destaque 2", "Destaque 3"],
-      "techStack": ["Tech 1", "Tech 2"],
+      "techStack": ["Tecnologia A", "Tecnologia B"],
       "timeline": [
-        {"phase": "Fase 1", "duration": "2 semanas"},
-        {"phase": "Fase 2", "duration": "4 semanas"}
+        {"phase": "Planejamento", "duration": "1 semana"},
+        {"phase": "Desenvolvimento", "duration": "2 semanas"}
       ],
-      "investmentValue": "€ X.XXX,XX",
-      "investmentDetails": "Frase curta justificando o valor (ROI, tecnologia, exclusividade)"
+      "investmentValue": "${project.budgetRange || 'A definir'}",
+      "investmentDetails": "Inclui desenvolvimento, testes e garantia de 3 meses."
     }
   `;
 
-  // Timeout Promise (120 segundos - Aumentado para evitar falhas)
-  const timeoutPromise = new Promise<{ timeout: true }>((_, reject) => 
-    setTimeout(() => reject(new Error("TIMEOUT_EXCEEDED")), 120000)
-  );
-
   try {
-    // Corrida entre a API e o Timeout
-    const response = await Promise.race([
-      ai.models.generateContent({
-        model: 'gemini-2.5-flash',
-        contents: prompt,
-        config: {
-          responseMimeType: "application/json",
-          responseSchema: {
-            type: Type.OBJECT,
-            properties: {
-              title: { type: Type.STRING },
-              executiveSummary: { type: Type.STRING },
-              solutionHighlights: { type: Type.ARRAY, items: { type: Type.STRING } },
-              techStack: { type: Type.ARRAY, items: { type: Type.STRING } },
-              timeline: { 
-                type: Type.ARRAY, 
-                items: { 
-                  type: Type.OBJECT,
-                  properties: {
-                    phase: { type: Type.STRING },
-                    duration: { type: Type.STRING }
-                  }
-                } 
-              },
-              investmentValue: { type: Type.STRING },
-              investmentDetails: { type: Type.STRING },
-            }
-          }
-        }
-      }),
-      timeoutPromise
-    ]);
+    const response = await ai.models.generateContent({
+      model: 'gemini-2.5-flash',
+      contents: prompt,
+      config: {
+        responseMimeType: "application/json",
+        // Desativamos tools para garantir velocidade máxima
+        temperature: 0.4, // Mais determinístico
+      }
+    });
 
-    // Se chegou aqui, não deu timeout. Mas TypeScript não sabe qual promise resolveu.
-    // Fazemos cast seguro.
-    const apiResponse = response as any;
-
-    let jsonText = apiResponse.text;
-    if (!jsonText) {
-      return { success: false, error: "A IA retornou uma resposta vazia." };
-    }
+    let jsonText = response.text;
+    if (!jsonText) throw new Error("Resposta vazia da IA");
     
-    // LIMPEZA CRÍTICA (Remove Markdown se a IA teimar em enviar)
+    // Limpeza agressiva de Markdown (caso a IA ignore o config)
     jsonText = jsonText.replace(/```json/g, '').replace(/```/g, '').trim();
 
-    try {
-        const data = JSON.parse(jsonText) as ProposalData;
-        return { success: true, data };
-    } catch (parseError) {
-        console.error("Erro ao parsear JSON da proposta:", parseError, jsonText);
-        return { success: false, error: "A IA gerou um formato inválido. Tente novamente." };
-    }
+    const data = JSON.parse(jsonText) as ProposalData;
+    return { success: true, data };
 
   } catch (error: any) {
     console.error("Erro ao gerar proposta:", error);
     
-    if (error.message === "TIMEOUT_EXCEEDED") {
-        return { success: false, error: "⏳ Tempo limite excedido (120s). A IA demorou muito para responder. Verifique sua conexão e tente novamente." };
-    }
-    if (error.toString().includes("403") || error.toString().includes("API key")) {
-        return { success: false, error: "🔑 Erro de autenticação. Verifique a Chave de API." };
-    }
-    if (error.toString().includes("503") || error.toString().includes("500")) {
-        return { success: false, error: "🔥 O servidor do Google está instável no momento." };
-    }
-
-    return { success: false, error: `Erro técnico: ${error.message || "Desconhecido"}` };
+    if (error.toString().includes("403")) return { success: false, error: "Erro de Permissão (API Key)." };
+    
+    return { success: false, error: "Não foi possível gerar a proposta agora. Tente novamente." };
   }
 };
