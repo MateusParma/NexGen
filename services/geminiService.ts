@@ -237,39 +237,51 @@ export const getAiConsultation = async (
 };
 
 /**
- * Gera uma proposta comercial SIMPLIFICADA E RÁPIDA (JSON)
+ * Gera uma proposta comercial PROFISSIONAL E ESTRUTURADA (JSON)
  */
 export const generateProposal = async (project: ProjectIdea): Promise<{ success: boolean; data?: ProposalData; error?: string }> => {
   if (!ai) {
     return { success: false, error: "Chave de API não configurada no sistema." };
   }
 
-  // Prompt simplificado e direto para evitar timeouts
+  // Prompt aprimorado para resultados profissionais
   const prompt = `
-    Aja como um Vendedor Sênior. Gere uma Proposta Comercial JSON para este projeto.
+    Aja como um Arquiteto de Soluções Sênior de uma Agência Digital Premium.
     
-    PROJETO: ${project.title || 'Novo Projeto'}
-    DESCRIÇÃO: ${project.description || 'Desenvolvimento sob medida'}
-    ORÇAMENTO: ${project.budgetRange || 'A definir'}
-    FEATURES: ${project.features?.join(', ') || 'Padrao'}
+    TAREFA: Gerar uma Proposta Comercial Detalhada em JSON para o seguinte projeto.
+    
+    DADOS DO PROJETO:
+    - Título: ${project.title || 'Projeto Digital Personalizado'}
+    - Descrição: ${project.description || 'Desenvolvimento de solução sob medida'}
+    - Orçamento Cliente: ${project.budgetRange || 'A definir'}
+    - Features Desejadas: ${project.features?.join(', ') || 'Padrão de mercado'}
 
-    REGRAS CRÍTICAS:
-    1. Responda APENAS com o JSON. Sem markdown.
-    2. Seja breve.
-    3. Se faltar dados, INVENTE algo profissional e genérico.
+    DIRETRIZES DE ESTILO:
+    1. Use linguagem corporativa, persuasiva e profissional.
+    2. Foco em VALOR DE NEGÓCIO, não apenas código.
+    3. Seja realista com prazos.
 
-    ESTRUTURA JSON OBRIGATÓRIA:
+    ESTRUTURA JSON OBRIGATÓRIA (Não use Markdown, apenas JSON puro):
     {
-      "title": "Titulo Comercial Atraente",
-      "executiveSummary": "Resumo em 2 frases no máximo focando em valor.",
-      "solutionHighlights": ["Destaque 1", "Destaque 2", "Destaque 3"],
-      "techStack": ["Tecnologia A", "Tecnologia B"],
-      "timeline": [
-        {"phase": "Planejamento", "duration": "1 semana"},
-        {"phase": "Desenvolvimento", "duration": "2 semanas"}
+      "title": "Crie um nome comercial impactante para a solução",
+      "subtitle": "Um slogan curto ou subtítulo técnico",
+      "executiveSummary": "Um parágrafo denso (3-4 frases) vendendo a visão da solução, mencionando tecnologias modernas e escalabilidade.",
+      "scope": [
+         { "title": "Nome do Módulo/Fase", "description": "Descrição detalhada do que será feito nesta parte." },
+         { "title": "Nome do Módulo/Fase", "description": "Descrição detalhada..." }
+         // Crie pelo menos 3 a 4 itens de escopo relevantes
       ],
-      "investmentValue": "${project.budgetRange || 'A definir'}",
-      "investmentDetails": "Inclui desenvolvimento, testes e garantia de 3 meses."
+      "techStack": ["Tecnologia 1", "Tecnologia 2", "Tecnologia 3", "Tecnologia 4"],
+      "timeline": [
+        {"phase": "1. Discovery & Design", "duration": "X Semanas", "deliverable": "Wireframes, UI Kit, Protótipo"},
+        {"phase": "2. Desenvolvimento", "duration": "X Semanas", "deliverable": "Frontend, Backend, API"},
+        {"phase": "3. QA & Deploy", "duration": "X Semanas", "deliverable": "Testes, Lançamento"}
+      ],
+      "marketingStrategy": "Sugestão de 2 frases sobre como alavancar o produto (SEO, Ads ou Launch).",
+      "maintenancePlan": "Descrição do suporte pós-lançamento (ex: 3 meses garantia, updates segurança).",
+      "investmentValue": "${project.budgetRange || 'A definir sob análise'}",
+      "investmentDetails": "Forma de pagamento sugerida (ex: 40% entrada, 30% entrega, 30% final) e validade da proposta.",
+      "whyUs": "Uma frase de encerramento sobre por que a NexGen Digital é a escolha certa."
     }
   `;
 
@@ -279,15 +291,14 @@ export const generateProposal = async (project: ProjectIdea): Promise<{ success:
       contents: prompt,
       config: {
         responseMimeType: "application/json",
-        // Desativamos tools para garantir velocidade máxima
-        temperature: 0.4, // Mais determinístico
+        temperature: 0.5, // Equilíbrio entre criatividade e estrutura
       }
     });
 
     let jsonText = response.text;
     if (!jsonText) throw new Error("Resposta vazia da IA");
     
-    // Limpeza agressiva de Markdown (caso a IA ignore o config)
+    // Limpeza robusta
     jsonText = jsonText.replace(/```json/g, '').replace(/```/g, '').trim();
 
     const data = JSON.parse(jsonText) as ProposalData;

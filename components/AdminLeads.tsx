@@ -1,7 +1,8 @@
+
 import React, { useState } from 'react';
 import { Lead, User, UserRole, ProposalData } from '../types';
 import { generateProposal } from '../services/geminiService';
-import { ArrowLeft, Mail, Calendar, LogOut, Check, X, Phone, Shield, UserPlus, Search, Trash2, Edit, Save, Lock, Image as ImageIcon, Eye, FileText, Sparkles, Loader2, Printer, Wallet, ExternalLink, Paperclip, AlertTriangle, RefreshCcw } from 'lucide-react';
+import { ArrowLeft, Mail, Calendar, LogOut, Check, X, Phone, Shield, UserPlus, Search, Trash2, Edit, Save, Lock, Image as ImageIcon, Eye, FileText, Sparkles, Loader2, Printer, Wallet, ExternalLink, Paperclip, AlertTriangle, RefreshCcw, Briefcase, Zap, Clock, ShieldCheck, Target } from 'lucide-react';
 
 interface AdminDashboardProps {
   leads: Lead[];
@@ -440,7 +441,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
         </div>
       )}
 
-      {/* --- PROPOSAL PDF VIEW --- */}
+      {/* --- PROPOSAL PDF VIEW (PREMIUM) --- */}
       {showProposalModal && currentProposal && (
          <div className="fixed inset-0 z-[100] bg-slate-900 overflow-y-auto">
             <div className="fixed top-0 left-0 w-full h-16 bg-slate-800 border-b border-slate-700 flex justify-between items-center px-6 print:hidden z-50 shadow-lg">
@@ -449,7 +450,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
                      <ArrowLeft className="w-4 h-4" /> Voltar
                    </button>
                    <div className="h-6 w-px bg-slate-600"></div>
-                   <span className="text-white font-bold">Proposta Comercial</span>
+                   <span className="text-white font-bold">Visualização de Impressão</span>
                 </div>
                 <div className="flex items-center gap-3">
                    <button 
@@ -457,107 +458,176 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
                     className="bg-white hover:bg-slate-100 text-slate-900 px-6 py-2 rounded-full font-bold flex items-center gap-2 shadow-lg transition-colors"
                    >
                      <Printer className="w-4 h-4" />
-                     Salvar PDF
+                     Imprimir / Salvar PDF
                    </button>
                 </div>
             </div>
 
             <div className="pt-24 pb-20 px-4 min-h-screen flex justify-center print:p-0 print:block print:min-h-0 print:bg-white print:pt-0">
-               <div className="bg-white text-slate-900 w-full max-w-[21cm] min-h-[29.7cm] shadow-2xl p-[2cm] print:shadow-none print:w-full print:max-w-none print:h-auto print:min-h-0 print:p-0 relative print:m-0">
+               {/* A4 PAPER CONTAINER */}
+               <div className="bg-white text-slate-900 w-full max-w-[21cm] shadow-2xl p-[1.5cm] print:shadow-none print:w-full print:max-w-none print:h-auto print:min-h-0 print:p-0 relative print:m-0 box-border">
                   
-                  <header className="flex justify-between items-start border-b border-slate-200 pb-8 mb-12">
+                  {/* HEADER WITH LOGO */}
+                  <header className="flex justify-between items-center mb-12 border-b-2 border-slate-900 pb-6">
                      <div>
-                       <div className="flex items-center gap-2 text-2xl font-bold text-slate-900 tracking-tighter mb-2">
-                         <div className="w-8 h-8 bg-black rounded-lg flex items-center justify-center">
-                            <Sparkles className="w-4 h-4 text-white" />
+                       <div className="flex items-center gap-2 text-3xl font-black text-slate-900 tracking-tighter">
+                         <div className="w-10 h-10 bg-slate-900 rounded-lg flex items-center justify-center">
+                            <Sparkles className="w-5 h-5 text-white" />
                          </div>
-                         NexGen<span className="text-slate-500">Digital</span>
+                         NexGen<span className="text-slate-400">Digital</span>
                        </div>
-                       <div className="text-xs text-slate-400 font-medium tracking-widest uppercase mt-2">Lisboa • Tropea • Global</div>
                      </div>
-                     <div className="text-right">
-                       <div className="text-slate-500 text-sm font-medium">Proposta Comercial</div>
-                       <div className="text-slate-900 font-bold text-lg mt-1">{new Date().toLocaleDateString()}</div>
+                     <div className="text-right text-xs uppercase tracking-widest font-bold text-slate-500">
+                        Proposta Comercial Confidencial
                      </div>
                   </header>
 
+                  {/* COVER INFO */}
                   <section className="mb-12">
-                    <h1 className="text-5xl font-extrabold text-slate-900 leading-tight tracking-tight mb-6">
+                    <span className="inline-block px-3 py-1 bg-slate-100 text-slate-600 text-xs font-bold uppercase rounded mb-4">
+                      {new Date().toLocaleDateString()} • Validade: 15 Dias
+                    </span>
+                    <h1 className="text-5xl font-black text-slate-900 leading-[1.1] mb-2">
                       {currentProposal.title}
                     </h1>
-                    <p className="text-xl text-slate-500 font-light leading-relaxed max-w-2xl">
-                      {currentProposal.executiveSummary}
-                    </p>
+                    {currentProposal.subtitle && (
+                      <h2 className="text-xl text-slate-500 font-medium mb-6">
+                        {currentProposal.subtitle}
+                      </h2>
+                    )}
+                    
+                    <div className="flex items-center gap-4 mt-6">
+                        <div className="h-1 w-20 bg-blue-600"></div>
+                        <p className="text-sm font-bold text-blue-600 uppercase tracking-wider">Preparado para {selectedLead?.name}</p>
+                    </div>
                   </section>
 
-                  <section className="grid grid-cols-3 gap-6 mb-16">
-                     {currentProposal.solutionHighlights.map((hl, idx) => (
-                       <div key={idx} className="bg-slate-50 p-6 rounded-2xl border border-slate-100">
-                          <div className="w-10 h-10 bg-white rounded-xl shadow-sm flex items-center justify-center mb-4 border border-slate-100 text-black font-bold">
-                            {idx + 1}
-                          </div>
-                          <p className="font-semibold text-slate-800">{hl}</p>
-                       </div>
-                     ))}
+                  {/* EXECUTIVE SUMMARY */}
+                  <section className="mb-12 bg-slate-50 p-8 rounded-xl border-l-4 border-slate-900 print:bg-transparent print:border-l-4 print:border-slate-900 print:p-0 print:pl-6">
+                     <h3 className="text-sm font-bold text-slate-900 uppercase tracking-widest mb-3">Visão Executiva</h3>
+                     <p className="text-lg text-slate-700 leading-relaxed font-serif italic">
+                       "{currentProposal.executiveSummary}"
+                     </p>
                   </section>
 
-                  <section className="grid grid-cols-2 gap-12 mb-16">
+                  {/* SCOPE OF WORK (GRID) */}
+                  <section className="mb-12 break-inside-avoid">
+                    <div className="flex items-center gap-3 mb-6">
+                       <Target className="w-6 h-6 text-slate-900" />
+                       <h3 className="text-xl font-bold text-slate-900">Escopo do Projeto</h3>
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6 print:grid-cols-2">
+                       {currentProposal.scope && currentProposal.scope.length > 0 ? (
+                           currentProposal.scope.map((item, idx) => (
+                             <div key={idx} className="border border-slate-200 p-5 rounded-lg break-inside-avoid">
+                                <h4 className="font-bold text-slate-900 mb-2">{item.title}</h4>
+                                <p className="text-sm text-slate-600 leading-relaxed">{item.description}</p>
+                             </div>
+                           ))
+                       ) : (
+                         <p className="text-slate-500 italic">Detalhes do escopo a serem definidos.</p>
+                       )}
+                    </div>
+                  </section>
+
+                  {/* TIMELINE & DELIVERABLES */}
+                  <section className="mb-12 break-inside-avoid">
+                    <div className="flex items-center gap-3 mb-6">
+                       <Clock className="w-6 h-6 text-slate-900" />
+                       <h3 className="text-xl font-bold text-slate-900">Cronograma & Entregáveis</h3>
+                    </div>
+                    <div className="space-y-0 border-l border-slate-200 ml-3">
+                       {currentProposal.timeline.map((item, i) => (
+                         <div key={i} className="relative pl-8 pb-8 last:pb-0 break-inside-avoid">
+                            <div className="absolute -left-1.5 top-1.5 w-3 h-3 bg-blue-600 rounded-full ring-4 ring-white"></div>
+                            <div className="flex justify-between items-start mb-1">
+                               <h4 className="font-bold text-slate-900 text-lg">{item.phase}</h4>
+                               <span className="bg-slate-100 px-3 py-1 rounded text-xs font-bold text-slate-600">{item.duration}</span>
+                            </div>
+                            <p className="text-sm text-slate-500">
+                               <span className="font-semibold text-slate-700">Entrega:</span> {item.deliverable}
+                            </p>
+                         </div>
+                       ))}
+                    </div>
+                  </section>
+
+                  {/* TECH STACK & STRATEGY (2 COLUMNS) */}
+                  <section className="grid grid-cols-2 gap-8 mb-12 break-inside-avoid">
                      <div>
-                       <h3 className="text-lg font-bold text-slate-900 mb-6 border-l-4 border-black pl-4">Tech Stack</h3>
+                       <h3 className="text-sm font-bold text-slate-900 uppercase tracking-widest mb-4 border-b border-slate-200 pb-2">Tech Stack</h3>
                        <div className="flex flex-wrap gap-2">
                           {currentProposal.techStack.map((tech, i) => (
-                             <span key={i} className="px-4 py-2 bg-slate-100 text-slate-700 rounded-lg text-sm font-medium">
+                             <span key={i} className="px-3 py-1 bg-slate-100 text-slate-700 rounded text-xs font-bold border border-slate-200">
                                {tech}
                              </span>
                           ))}
                        </div>
                      </div>
                      <div>
-                       <h3 className="text-lg font-bold text-slate-900 mb-6 border-l-4 border-black pl-4">Cronograma</h3>
-                       <div className="space-y-4">
-                          {currentProposal.timeline.map((item, i) => (
-                            <div key={i} className="flex justify-between items-center border-b border-slate-100 pb-2">
-                               <span className="text-slate-600 font-medium">{item.phase}</span>
-                               <span className="text-slate-900 font-bold">{item.duration}</span>
-                            </div>
-                          ))}
-                       </div>
+                        {currentProposal.marketingStrategy && (
+                            <>
+                                <h3 className="text-sm font-bold text-slate-900 uppercase tracking-widest mb-4 border-b border-slate-200 pb-2">Estratégia de Growth</h3>
+                                <p className="text-sm text-slate-600 leading-relaxed">{currentProposal.marketingStrategy}</p>
+                            </>
+                        )}
                      </div>
                   </section>
 
-                  <section className="bg-black text-white rounded-3xl p-10 mb-16 relative overflow-hidden print:bg-black print:text-white print:border print:border-black">
-                     <div className="relative z-10 flex justify-between items-end">
+                  {/* INVESTMENT - BIG HIGHLIGHT */}
+                  <section className="bg-slate-900 text-white p-8 rounded-xl mb-8 break-inside-avoid print:bg-black print:text-white">
+                     <div className="flex flex-col md:flex-row justify-between items-end gap-6">
                         <div>
-                          <h3 className="text-slate-400 font-medium uppercase tracking-widest text-sm mb-2">Investimento Total</h3>
-                          <div className="text-5xl font-bold tracking-tight">{currentProposal.investmentValue}</div>
-                          <p className="text-slate-400 mt-4 max-w-md">{currentProposal.investmentDetails}</p>
+                          <h3 className="text-slate-400 font-medium uppercase tracking-widest text-xs mb-2">Investimento Total Estimado</h3>
+                          <div className="text-5xl font-bold tracking-tight mb-2">{currentProposal.investmentValue}</div>
+                          <div className="flex items-center gap-2 text-sm text-slate-300">
+                             <ShieldCheck className="w-4 h-4 text-green-400" />
+                             <span>{currentProposal.investmentDetails}</span>
+                          </div>
+                        </div>
+                        <div className="text-right max-w-xs">
+                           <div className="text-xs text-slate-500 uppercase font-bold mb-1">Incluso no Pacote</div>
+                           <p className="text-sm text-slate-300">
+                             {currentProposal.maintenancePlan || "Suporte técnico e garantia de bugs por 3 meses após lançamento."}
+                           </p>
                         </div>
                      </div>
                   </section>
+
+                  {/* FOOTER / WHY US */}
+                  <div className="border-t border-slate-200 pt-6 text-center break-inside-avoid">
+                    {currentProposal.whyUs && (
+                        <p className="text-slate-800 font-medium italic mb-4">"{currentProposal.whyUs}"</p>
+                    )}
+                    <div className="flex justify-center gap-8 text-xs text-slate-400 uppercase tracking-widest">
+                       <span>www.nexgendigital.com</span>
+                       <span>comercial.nexgen.iaestudio@gmail.com</span>
+                    </div>
+                  </div>
+
                </div>
             </div>
+            
             <style>{`
                @media print {
-                 @page { margin: 0; size: auto; }
+                 @page { margin: 0; size: A4; }
                  body { 
                     background: white; 
                     margin: 0; 
                     padding: 0;
-                    overflow: visible !important;
                  }
                  /* Esconde TUDO que não seja o modal de proposta */
                  body > *:not(.fixed) { display: none !important; }
                  
-                 /* Ajustes específicos para limpar a UI da tela de impressão */
-                 .print\\:hidden { display: none !important; }
+                 /* Força a visibilidade das classes print:block */
                  .print\\:block { display: block !important; }
-                 .print\\:p-0 { padding: 0 !important; }
-                 .print\\:m-0 { margin: 0 !important; }
-                 .print\\:pt-0 { padding-top: 0 !important; }
-                 .print\\:min-h-0 { min-height: 0 !important; }
-                 .print\\:bg-white { background: white !important; }
-                 .print\\:text-white { color: white !important; }
+                 .print\\:hidden { display: none !important; }
                  
+                 /* Reset de containers para ocupar a folha toda */
+                 .fixed.inset-0 { position: static !important; height: auto !important; overflow: visible !important; background: white !important; }
+                 .bg-white { box-shadow: none !important; max-width: none !important; width: 100% !important; padding: 1.5cm !important; }
+                 
+                 /* Cores exatas */
                  * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
                }
             `}</style>

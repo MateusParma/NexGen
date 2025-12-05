@@ -1,7 +1,8 @@
 
 import React, { useState } from 'react';
-import { Mail, Phone, MapPin, Instagram, Linkedin, Facebook, Send, CheckCircle, Loader2 } from 'lucide-react';
+import { Mail, Phone, MapPin, Instagram, Linkedin, Facebook, Send, CheckCircle, Loader2, MessageCircle } from 'lucide-react';
 import { Lead } from '../types';
+import { saveToGoogleSheet } from '../services/googleSheetService';
 
 interface ContactProps {
   onRegisterLead?: (lead: Omit<Lead, 'id' | 'createdAt' | 'status'>) => void;
@@ -26,25 +27,48 @@ const Contact: React.FC<ContactProps> = ({ onRegisterLead }) => {
     });
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSubmitting(true);
 
-    // Simula o envio de email e registro no sistema
+    const interestText = `${formData.service} - ${formData.company ? `Empresa: ${formData.company} - ` : ''}${formData.message}`;
+
+    // 1. Salva localmente (para o histórico do cliente neste dispositivo)
+    if (onRegisterLead) {
+      onRegisterLead({
+        name: formData.name,
+        contact: formData.email,
+        interest: interestText,
+      });
+    }
+
+    // 2. Salva no Banco de Dados (Google Sheets)
+    await saveToGoogleSheet({
+      name: formData.name,
+      contact: formData.email,
+      interest: interestText,
+      details: { company: formData.company, service: formData.service, message: formData.message }
+    });
+
+    // 3. Envia para o WhatsApp do Admin (Garante o recebimento imediato)
     setTimeout(() => {
-      if (onRegisterLead) {
-        onRegisterLead({
-          name: formData.name,
-          contact: formData.email,
-          interest: `${formData.service} - ${formData.company ? `Empresa: ${formData.company} - ` : ''}${formData.message}`,
-        });
-      }
+      const adminPhone = "351925460063"; // Número do Admin
+      const text = `🚀 *Novo Lead via Site NexGen*\n\n` +
+                   `*Nome:* ${formData.name}\n` +
+                   `*Empresa:* ${formData.company || 'N/A'}\n` +
+                   `*Email:* ${formData.email}\n` +
+                   `*Interesse:* ${formData.service}\n\n` +
+                   `*Mensagem:*\n${formData.message}`;
+      
+      const whatsappUrl = `https://wa.me/${adminPhone}?text=${encodeURIComponent(text)}`;
+      
+      // Abre o WhatsApp em nova aba
+      window.open(whatsappUrl, '_blank');
       
       setIsSubmitting(false);
       setIsSent(true);
       setFormData({ name: '', company: '', email: '', service: 'Desenvolvimento Web', message: '' });
       
-      // Reseta a mensagem de sucesso após alguns segundos
       setTimeout(() => setIsSent(false), 5000);
     }, 1500);
   };
@@ -115,15 +139,15 @@ const Contact: React.FC<ContactProps> = ({ onRegisterLead }) => {
                 <div className="w-20 h-20 bg-green-500 rounded-full flex items-center justify-center mb-6 shadow-lg shadow-green-900/50">
                   <CheckCircle className="w-10 h-10 text-white" />
                 </div>
-                <h3 className="text-2xl font-bold text-white mb-2">Mensagem Enviada!</h3>
-                <p className="text-slate-300 max-w-xs">
-                  Sua solicitação foi encaminhada para <strong>comercial.nexgen.iaestudio@gmail.com</strong> e nossa equipe entrará em contato em breve.
+                <h3 className="text-2xl font-bold text-white mb-2">Solicitação Iniciada!</h3>
+                <p className="text-slate-300 max-w-xs mb-6">
+                  Estamos abrindo seu WhatsApp para finalizar o contato direto com nossa equipe comercial.
                 </p>
                 <button 
                   onClick={() => setIsSent(false)}
-                  className="mt-8 px-6 py-2 bg-slate-700 hover:bg-slate-600 text-white rounded-lg transition-colors"
+                  className="px-6 py-2 bg-slate-700 hover:bg-slate-600 text-white rounded-lg transition-colors"
                 >
-                  Enviar nova mensagem
+                  Voltar
                 </button>
               </div>
             ) : null}
@@ -201,17 +225,17 @@ const Contact: React.FC<ContactProps> = ({ onRegisterLead }) => {
               <button 
                 type="submit" 
                 disabled={isSubmitting}
-                className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-500 hover:to-purple-500 text-white font-bold py-4 rounded-lg transition-all transform hover:scale-[1.02] shadow-lg shadow-blue-900/20 flex items-center justify-center gap-2 disabled:opacity-70 disabled:cursor-not-allowed"
+                className="w-full bg-green-600 hover:bg-green-500 text-white font-bold py-4 rounded-lg transition-all transform hover:scale-[1.02] shadow-lg shadow-green-900/20 flex items-center justify-center gap-2 disabled:opacity-70 disabled:cursor-not-allowed"
               >
                 {isSubmitting ? (
                   <>
                     <Loader2 className="w-5 h-5 animate-spin" />
-                    Enviando...
+                    Preparando...
                   </>
                 ) : (
                   <>
-                    <Send className="w-5 h-5" />
-                    Solicitar Orçamento Gratuito
+                    <MessageCircle className="w-5 h-5" />
+                    Enviar via WhatsApp
                   </>
                 )}
               </button>

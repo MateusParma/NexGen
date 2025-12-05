@@ -1,7 +1,8 @@
 
 import React, { useState } from 'react';
 import { ProjectIdea, User, Lead } from '../types';
-import { ArrowLeft, Printer, Calendar, Wallet, CheckCircle, ExternalLink, Sparkles, Edit3, Save, X, Send, Loader2 } from 'lucide-react';
+import { ArrowLeft, Printer, Calendar, Wallet, CheckCircle, ExternalLink, Sparkles, Edit3, Save, X, Send, Loader2, MessageCircle } from 'lucide-react';
+import { saveToGoogleSheet } from '../services/googleSheetService';
 
 interface UserProjectDetailProps {
   project: ProjectIdea;
@@ -16,6 +17,7 @@ const UserProjectDetail: React.FC<UserProjectDetailProps> = ({ project, currentU
   const [showQuoteModal, setShowQuoteModal] = useState(false);
   const [quoteSent, setQuoteSent] = useState(false);
   const [isSending, setIsSending] = useState(false);
+  const [extraMessage, setExtraMessage] = useState('');
   
   // Estado local para edição
   const [editedProject, setEditedProject] = useState<ProjectIdea>(project);
@@ -29,31 +31,68 @@ const UserProjectDetail: React.FC<UserProjectDetailProps> = ({ project, currentU
     setIsEditing(false);
   };
 
-  const handleSendQuote = (e: React.FormEvent) => {
+  const handleSendQuote = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSending(true);
 
-    // Prepara os dados do Lead para enviar ao Admin
-    // Inclui a primeira imagem como thumbnail se existir
-    // Inclui TODOS os dados do projeto para geração de proposta com IA
+    const interestDescription = `Orçamento Projeto: ${project.title} (${project.budgetRange || 'Sem valor'}) - Funcionalidades: ${project.features.join(', ')}`;
+
+    // 1. Salva localmente para registro
     const leadData: Omit<Lead, 'id' | 'createdAt' | 'status'> = {
       name: currentUser.name,
       contact: currentUser.email,
-      interest: `Orçamento Projeto: ${project.title} (${project.budgetRange || 'Sem valor'})`,
+      interest: interestDescription,
       projectImage: project.images && project.images.length > 0 ? project.images[0] : undefined,
-      projectData: project // Envia o objeto completo
+      projectData: project
     };
 
-    // Simulação de tempo de rede
+    onRegisterLead(leadData);
+
+    // 2. Salva no Google Sheets (DB Nuvem)
+    await saveToGoogleSheet({
+        name: currentUser.name,
+        contact: currentUser.email,
+        interest: interestDescription,
+        details: { 
+            projectTitle: project.title,
+            budget: project.budgetRange,
+            description: project.description,
+            extraMessage: extraMessage
+        }
+    });
+
+    // 3. Envia para o WhatsApp do Admin
     setTimeout(() => {
-      onRegisterLead(leadData); // Chama a função do App.tsx
+      const adminPhone = "351925460063"; 
+      
+      let text = `📋 *PEDIDO DE ORÇAMENTO - NEXGEN*\n\n` +
+                   `*Cliente:* ${currentUser.name}\n` +
+                   `*Email:* ${currentUser.email}\n` +
+                   `*Projeto:* ${project.title}\n` +
+                   `*Orçamento Est:* ${project.budgetRange || 'A definir'}\n` +
+                   `*Funcionalidades:* ${project.features.join(', ') || 'N/A'}\n\n` +
+                   `*Descrição:*\n${project.description}`;
+      
+      if (extraMessage) {
+        text += `\n\n*Mensagem Adicional:*\n${extraMessage}`;
+      }
+
+      if (project.driveLink) {
+        text += `\n\n*Link Externo:* ${project.driveLink}`;
+      }
+      
+      const whatsappUrl = `https://wa.me/${adminPhone}?text=${encodeURIComponent(text)}`;
+      
+      window.open(whatsappUrl, '_blank');
+
       setIsSending(false);
       setQuoteSent(true);
       
       setTimeout(() => {
         setQuoteSent(false);
         setShowQuoteModal(false);
-      }, 3000);
+        setExtraMessage('');
+      }, 5000);
     }, 1500);
   };
 
@@ -331,14 +370,16 @@ const UserProjectDetail: React.FC<UserProjectDetailProps> = ({ project, currentU
                   <div className="bg-blue-500/10 border border-blue-500/20 rounded-xl p-4 flex items-start gap-3">
                     <Sparkles className="w-5 h-5 text-blue-400 shrink-0 mt-0.5" />
                     <div className="text-sm text-blue-200">
-                      <p className="font-bold mb-1">Projeto Anexado Automaticamente</p>
-                      <p>O PDF do seu projeto <strong>"{project.title}"</strong> e suas imagens serão enviados junto com esta mensagem para nossa equipe.</p>
+                      <p className="font-bold mb-1">Integração WhatsApp + Google Drive</p>
+                      <p>Recebemos seu projeto instantaneamente no WhatsApp e salvamos uma cópia de segurança em nosso banco de dados na nuvem.</p>
                     </div>
                   </div>
 
                   <div>
                     <label className="block text-sm text-slate-400 mb-2">Mensagem Adicional (Opcional)</label>
                     <textarea 
+                      value={extraMessage}
+                      onChange={(e) => setExtraMessage(e.target.value)}
                       className="w-full bg-black/20 border border-slate-700 rounded-lg p-3 text-white focus:border-primary outline-none"
                       placeholder="Gostaria de prioridade na entrega..."
                       rows={3}
@@ -348,15 +389,18 @@ const UserProjectDetail: React.FC<UserProjectDetailProps> = ({ project, currentU
                   <button 
                     type="submit"
                     disabled={isSending}
-                    className="w-full py-3 bg-primary hover:bg-blue-600 text-white font-bold rounded-xl transition-colors shadow-lg shadow-blue-900/20 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="w-full py-3 bg-green-600 hover:bg-green-500 text-white font-bold rounded-xl transition-colors shadow-lg shadow-green-900/20 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     {isSending ? (
                       <>
                         <Loader2 className="w-5 h-5 animate-spin" />
-                        Enviando Dados...
+                        Salvando e Enviando...
                       </>
                     ) : (
-                      'Confirmar Envio'
+                      <>
+                        <MessageCircle className="w-5 h-5" />
+                        Enviar via WhatsApp
+                      </>
                     )}
                   </button>
                 </form>
@@ -365,8 +409,9 @@ const UserProjectDetail: React.FC<UserProjectDetailProps> = ({ project, currentU
                   <div className="w-16 h-16 bg-green-500 rounded-full flex items-center justify-center mx-auto mb-4">
                     <CheckCircle className="w-8 h-8 text-white" />
                   </div>
-                  <h4 className="text-xl font-bold text-white mb-2">Enviado com Sucesso!</h4>
-                  <p className="text-slate-400">Recebemos seu projeto. Você pode verificar o status no painel principal ou aguardar nosso contato em <strong>{currentUser.email}</strong>.</p>
+                  <h4 className="text-xl font-bold text-white mb-2">WhatsApp Aberto!</h4>
+                  <p className="text-slate-400">Verifique se a mensagem foi enviada no seu aplicativo.</p>
+                  <button onClick={() => setShowQuoteModal(false)} className="mt-6 text-sm text-slate-500 underline">Fechar</button>
                 </div>
               )}
             </div>

@@ -64,14 +64,23 @@ export interface ProjectIdea {
   driveLink?: string;
 }
 
+export interface ProposalScopeItem {
+  title: string;
+  description: string;
+}
+
 export interface ProposalData {
   title: string;
+  subtitle?: string;
   executiveSummary: string;
-  solutionHighlights: string[];
+  scope: ProposalScopeItem[]; // Novo: Lista detalhada do escopo
   techStack: string[];
-  timeline: { phase: string; duration: string }[];
+  timeline: { phase: string; duration: string; deliverable: string }[]; // Novo: Entregáveis
+  marketingStrategy?: string; // Novo: Estratégia de crescimento
+  maintenancePlan?: string; // Novo: Plano de suporte
   investmentValue: string;
   investmentDetails: string;
+  whyUs?: string; // Novo: Diferenciais
 }
 
 export interface Lead {
