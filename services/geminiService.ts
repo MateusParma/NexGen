@@ -255,6 +255,8 @@ export const generateProposal = async (project: ProjectIdea): Promise<{ success:
     Features: ${project.features?.join(', ') || 'A definir na reunião técnica.'}
     Orçamento do Cliente: ${project.budgetRange || 'A definir'}
     
+    IMPORTANTE: Retorne APENAS o JSON válido. Não use blocos de código markdown.
+    
     Gere um JSON VÁLIDO seguindo estritamente este esquema:
     {
       "title": "Titulo Comercial Curto e Impactante",
@@ -270,9 +272,9 @@ export const generateProposal = async (project: ProjectIdea): Promise<{ success:
     }
   `;
 
-  // Timeout Promise (60 segundos)
+  // Timeout Promise (120 segundos - Aumentado para evitar falhas)
   const timeoutPromise = new Promise<{ timeout: true }>((_, reject) => 
-    setTimeout(() => reject(new Error("TIMEOUT_EXCEEDED")), 60000)
+    setTimeout(() => reject(new Error("TIMEOUT_EXCEEDED")), 120000)
   );
 
   try {
@@ -318,7 +320,7 @@ export const generateProposal = async (project: ProjectIdea): Promise<{ success:
       return { success: false, error: "A IA retornou uma resposta vazia." };
     }
     
-    // LIMPEZA CRÍTICA
+    // LIMPEZA CRÍTICA (Remove Markdown se a IA teimar em enviar)
     jsonText = jsonText.replace(/```json/g, '').replace(/```/g, '').trim();
 
     try {
@@ -333,7 +335,7 @@ export const generateProposal = async (project: ProjectIdea): Promise<{ success:
     console.error("Erro ao gerar proposta:", error);
     
     if (error.message === "TIMEOUT_EXCEEDED") {
-        return { success: false, error: "⏳ Tempo limite excedido (60s). A IA demorou muito para responder. Tente novamente." };
+        return { success: false, error: "⏳ Tempo limite excedido (120s). A IA demorou muito para responder. Verifique sua conexão e tente novamente." };
     }
     if (error.toString().includes("403") || error.toString().includes("API key")) {
         return { success: false, error: "🔑 Erro de autenticação. Verifique a Chave de API." };
