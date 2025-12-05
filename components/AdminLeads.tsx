@@ -1,8 +1,7 @@
-
 import React, { useState } from 'react';
 import { Lead, User, UserRole, ProposalData } from '../types';
 import { generateProposal } from '../services/geminiService';
-import { ArrowLeft, Mail, Calendar, LogOut, Check, X, Phone, Shield, UserPlus, Search, Trash2, Edit, Save, Lock, Image as ImageIcon, Eye, FileText, Sparkles, Loader2, Printer, Wallet, ExternalLink, Paperclip } from 'lucide-react';
+import { ArrowLeft, Mail, Calendar, LogOut, Check, X, Phone, Shield, UserPlus, Search, Trash2, Edit, Save, Lock, Image as ImageIcon, Eye, FileText, Sparkles, Loader2, Printer, Wallet, ExternalLink, Paperclip, AlertTriangle, RefreshCcw } from 'lucide-react';
 
 interface AdminDashboardProps {
   leads: Lead[];
@@ -46,6 +45,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
   // Lead Details State
   const [selectedLead, setSelectedLead] = useState<Lead | null>(null);
   const [isGeneratingProposal, setIsGeneratingProposal] = useState(false);
+  const [generationError, setGenerationError] = useState<string | null>(null);
   const [showProposalModal, setShowProposalModal] = useState(false);
   const [currentProposal, setCurrentProposal] = useState<ProposalData | null>(null);
 
@@ -105,8 +105,11 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
         return;
     }
     
+    // Reset states
     setIsGeneratingProposal(true);
+    setGenerationError(null);
     
+    // Check cache first
     if (selectedLead.generatedProposal) {
         setCurrentProposal(selectedLead.generatedProposal);
         setIsGeneratingProposal(false);
@@ -115,18 +118,18 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
     }
 
     try {
-        const proposal = await generateProposal(selectedLead.projectData);
-        if (proposal) {
-            setCurrentProposal(proposal);
-            // NOTE: In a real app we would save this generated proposal back to the lead in DB
-            selectedLead.generatedProposal = proposal; 
+        const result = await generateProposal(selectedLead.projectData);
+        
+        if (result.success && result.data) {
+            setCurrentProposal(result.data);
+            selectedLead.generatedProposal = result.data; 
             setShowProposalModal(true);
         } else {
-            alert("Erro ao gerar proposta.");
+            setGenerationError(result.error || "Erro desconhecido ao gerar proposta.");
         }
     } catch (e) {
         console.error(e);
-        alert("Erro técnico ao conectar com a IA.");
+        setGenerationError("Erro crítico na aplicação.");
     } finally {
         setIsGeneratingProposal(false);
     }
@@ -155,7 +158,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
   };
 
   return (
-    <div className="min-h-screen bg-dark text-white pt-24 pb-12 relative print:bg-white print:p-0">
+    <div className="min-h-screen bg-dark text-white pt-24 pb-12 relative print:bg-white print:p-0 print:pt-0">
       
       {/* --- DASHBOARD VIEW (HIDDEN ON PRINT) --- */}
       <div className="container mx-auto px-6 print:hidden">
@@ -266,7 +269,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
                         </td>
                         <td className="p-6 text-right">
                           <div className="flex items-center justify-end gap-2">
-                            <button onClick={() => setSelectedLead(lead)} className="p-2 bg-slate-700 hover:bg-slate-600 text-white rounded-lg transition-all" title="Ver Detalhes"><Eye className="w-4 h-4" /></button>
+                            <button onClick={() => { setSelectedLead(lead); setGenerationError(null); }} className="p-2 bg-slate-700 hover:bg-slate-600 text-white rounded-lg transition-all" title="Ver Detalhes"><Eye className="w-4 h-4" /></button>
                             {lead.status !== 'Confirmed' && lead.status !== 'Cancelled' && (
                               <>
                                 <button onClick={() => onUpdateStatus(lead.id, 'Confirmed')} className="p-2 bg-green-500/10 hover:bg-green-500/20 text-green-500 rounded-lg border border-green-500/20 transition-all"><Check className="w-4 h-4" /></button>
@@ -291,6 +294,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
                   <tr className="bg-slate-900/50 text-slate-400 text-sm uppercase tracking-wider">
                     <th className="p-6 font-semibold">Nome</th>
                     <th className="p-6 font-semibold">Email</th>
+                    <th className="p-6 font-semibold">Telefone</th>
                     <th className="p-6 font-semibold">Permissão</th>
                     <th className="p-6 font-semibold text-right">Ações</th>
                   </tr>
@@ -303,8 +307,11 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
                          {user.name}
                       </td>
                       <td className="p-6 text-slate-300">{user.email}</td>
+                      <td className="p-6 text-slate-300 text-sm">{user.phone || '-'}</td>
                       <td className="p-6">
-                        <span className={`px-3 py-1 rounded-full text-xs font-bold border ${user.role === 'admin' ? 'bg-purple-500/10 text-purple-400 border-purple-500/20' : 'bg-blue-500/10 text-blue-400 border-blue-500/20'}`}>{user.role === 'admin' ? 'Administrador' : 'Cliente'}</span>
+                         {user.role === 'admin' && <span className="px-3 py-1 rounded-full text-xs font-bold bg-purple-500/10 text-purple-400 border border-purple-500/20">Admin</span>}
+                         {user.role === 'client' && <span className="px-3 py-1 rounded-full text-xs font-bold bg-blue-500/10 text-blue-400 border border-blue-500/20">Cliente</span>}
+                         {user.role === 'guest' && <span className="px-3 py-1 rounded-full text-xs font-bold bg-yellow-500/10 text-yellow-400 border border-yellow-500/20">Convidado</span>}
                       </td>
                       <td className="p-6 text-right">
                         <div className="flex items-center justify-end gap-2">
@@ -401,13 +408,30 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
                  <div className="space-y-4">
                     <h4 className="text-sm font-bold text-white flex items-center gap-2"><Sparkles className="w-4 h-4 text-purple-400" /> Gerador de Proposta IA</h4>
                     <p className="text-xs text-slate-400">Analisa os dados para criar uma proposta comercial.</p>
-                    <button 
-                      onClick={handleGenerateProposal}
-                      disabled={isGeneratingProposal || !selectedLead.projectData}
-                      className="w-full py-4 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-500 hover:to-blue-500 text-white rounded-xl font-bold transition-all shadow-lg flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
-                      {isGeneratingProposal ? <><Loader2 className="w-4 h-4 animate-spin" /> Gerando...</> : 'Gerar Proposta'}
-                    </button>
+                    
+                    {generationError ? (
+                        <div className="p-4 bg-red-500/10 border border-red-500/20 rounded-xl text-sm animate-in fade-in">
+                            <div className="flex items-start gap-2 text-red-400 mb-2">
+                                <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" />
+                                <span className="font-bold">Falha ao Gerar</span>
+                            </div>
+                            <p className="text-slate-400 text-xs mb-3">{generationError}</p>
+                            <button 
+                                onClick={handleGenerateProposal}
+                                className="w-full py-2 bg-red-500/10 hover:bg-red-500/20 text-red-400 rounded-lg text-xs font-bold border border-red-500/20 transition-colors flex items-center justify-center gap-2"
+                            >
+                                <RefreshCcw className="w-3 h-3" /> Tentar Novamente
+                            </button>
+                        </div>
+                    ) : (
+                        <button 
+                        onClick={handleGenerateProposal}
+                        disabled={isGeneratingProposal || !selectedLead.projectData}
+                        className="w-full py-4 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-500 hover:to-blue-500 text-white rounded-xl font-bold transition-all shadow-lg flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                        {isGeneratingProposal ? <><Loader2 className="w-4 h-4 animate-spin" /> Gerando (pode demorar)...</> : 'Gerar Proposta'}
+                        </button>
+                    )}
                   </div>
               </div>
 
@@ -438,8 +462,8 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
                 </div>
             </div>
 
-            <div className="pt-24 pb-20 px-4 min-h-screen flex justify-center print:p-0 print:block">
-               <div className="bg-white text-slate-900 w-full max-w-[21cm] min-h-[29.7cm] shadow-2xl p-[2cm] print:shadow-none print:w-full print:max-w-none print:h-auto print:min-h-0 print:p-0 relative">
+            <div className="pt-24 pb-20 px-4 min-h-screen flex justify-center print:p-0 print:block print:min-h-0 print:bg-white print:pt-0">
+               <div className="bg-white text-slate-900 w-full max-w-[21cm] min-h-[29.7cm] shadow-2xl p-[2cm] print:shadow-none print:w-full print:max-w-none print:h-auto print:min-h-0 print:p-0 relative print:m-0">
                   
                   <header className="flex justify-between items-start border-b border-slate-200 pb-8 mb-12">
                      <div>
@@ -501,7 +525,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
                      </div>
                   </section>
 
-                  <section className="bg-black text-white rounded-3xl p-10 mb-16 relative overflow-hidden print:bg-black print:text-white">
+                  <section className="bg-black text-white rounded-3xl p-10 mb-16 relative overflow-hidden print:bg-black print:text-white print:border print:border-black">
                      <div className="relative z-10 flex justify-between items-end">
                         <div>
                           <h3 className="text-slate-400 font-medium uppercase tracking-widest text-sm mb-2">Investimento Total</h3>
@@ -515,10 +539,25 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
             <style>{`
                @media print {
                  @page { margin: 0; size: auto; }
-                 body { background: white; }
+                 body { 
+                    background: white; 
+                    margin: 0; 
+                    padding: 0;
+                    overflow: visible !important;
+                 }
+                 /* Esconde TUDO que não seja o modal de proposta */
+                 body > *:not(.fixed) { display: none !important; }
+                 
+                 /* Ajustes específicos para limpar a UI da tela de impressão */
                  .print\\:hidden { display: none !important; }
                  .print\\:block { display: block !important; }
                  .print\\:p-0 { padding: 0 !important; }
+                 .print\\:m-0 { margin: 0 !important; }
+                 .print\\:pt-0 { padding-top: 0 !important; }
+                 .print\\:min-h-0 { min-height: 0 !important; }
+                 .print\\:bg-white { background: white !important; }
+                 .print\\:text-white { color: white !important; }
+                 
                  * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
                }
             `}</style>

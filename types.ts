@@ -46,6 +46,7 @@ export interface User {
   id: string;
   name: string;
   email: string;
+  phone?: string; // Adicionado para contato de convidado
   role: UserRole;
   avatar?: string;
   password?: string; // Adicionado para autenticação

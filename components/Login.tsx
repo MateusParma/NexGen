@@ -1,6 +1,6 @@
 
 import React, { useState } from 'react';
-import { ArrowLeft, Lock, Mail, AlertCircle, Loader2, User as UserIcon, UserPlus, Ghost, Eye, EyeOff } from 'lucide-react';
+import { ArrowLeft, Lock, Mail, AlertCircle, Loader2, User as UserIcon, UserPlus, Ghost, Eye, EyeOff, Phone } from 'lucide-react';
 import { User } from '../types';
 
 interface LoginProps {
@@ -20,12 +20,14 @@ const Login: React.FC<LoginProps> = ({ users, onLoginSuccess, onRegister, onBack
   // Form State
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
+  const [phone, setPhone] = useState(''); // Novo estado para telefone
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
 
   const resetForm = () => {
     setError('');
     setEmail('');
+    setPhone('');
     setPassword('');
     setName('');
     setConfirmPassword('');
@@ -50,10 +52,17 @@ const Login: React.FC<LoginProps> = ({ users, onLoginSuccess, onRegister, onBack
             setIsLoading(false);
             return;
         }
+        if (!email.trim() && !phone.trim()) {
+            setError('Por favor, informe ao menos um contato (Email ou Telefone).');
+            setIsLoading(false);
+            return;
+        }
+
         const guestUser: User = {
             id: `guest-${Date.now()}`,
             name: name,
-            email: 'guest@nexgen.com',
+            email: email || 'guest@no-email.com',
+            phone: phone,
             role: 'guest',
         };
         onRegister(guestUser); // Trata convidado como registro temporário
@@ -188,6 +197,38 @@ const Login: React.FC<LoginProps> = ({ users, onLoginSuccess, onRegister, onBack
                 <UserIcon className="w-5 h-5 text-slate-500 absolute left-3 top-3" />
               </div>
             </div>
+          )}
+
+          {view === 'guest' && (
+            <>
+                <div className="space-y-2 animate-in fade-in slide-in-from-left-2">
+                <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Email (Opcional se tiver telefone)</label>
+                <div className="relative">
+                    <input 
+                    type="email" 
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    className="w-full bg-slate-800 border border-slate-700 rounded-xl p-3 pl-10 text-white focus:border-primary focus:outline-none transition-colors"
+                    placeholder="seu@email.com"
+                    />
+                    <Mail className="w-5 h-5 text-slate-500 absolute left-3 top-3" />
+                </div>
+                </div>
+                
+                <div className="space-y-2 animate-in fade-in slide-in-from-left-2">
+                <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Telefone / WhatsApp</label>
+                <div className="relative">
+                    <input 
+                    type="tel" 
+                    value={phone}
+                    onChange={(e) => setPhone(e.target.value)}
+                    className="w-full bg-slate-800 border border-slate-700 rounded-xl p-3 pl-10 text-white focus:border-primary focus:outline-none transition-colors"
+                    placeholder="+351 999 999 999"
+                    />
+                    <Phone className="w-5 h-5 text-slate-500 absolute left-3 top-3" />
+                </div>
+                </div>
+            </>
           )}
 
           {view !== 'guest' && (

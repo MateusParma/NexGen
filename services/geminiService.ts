@@ -1,4 +1,3 @@
-
 import { GoogleGenAI, FunctionDeclaration, Type } from "@google/genai";
 import { ChatMessage, Lead, ProjectIdea, ProposalData } from "../types";
 
@@ -238,14 +237,14 @@ export const getAiConsultation = async (
 
 /**
  * Gera uma proposta comercial estruturada (JSON) baseada nos dados do projeto
+ * Retorna um objeto com status e dados ou erro
  */
-export const generateProposal = async (project: ProjectIdea): Promise<ProposalData | null> => {
+export const generateProposal = async (project: ProjectIdea): Promise<{ success: boolean; data?: ProposalData; error?: string }> => {
   if (!ai) {
-    console.error("AI not initialized");
-    return null;
+    return { success: false, error: "Chave de API não configurada no sistema." };
   }
 
-  // Prepara o prompt com fallback se algum dado estiver faltando
+  // Prepara o prompt
   const prompt = `
     Aja como um Diretor de Criação e Vendas da NexGen Digital.
     Analise este projeto e crie os dados para uma proposta comercial premium estilo Apple/McKinsey.
@@ -271,46 +270,78 @@ export const generateProposal = async (project: ProjectIdea): Promise<ProposalDa
     }
   `;
 
+  // Timeout Promise (60 segundos)
+  const timeoutPromise = new Promise<{ timeout: true }>((_, reject) => 
+    setTimeout(() => reject(new Error("TIMEOUT_EXCEEDED")), 60000)
+  );
+
   try {
-    const response = await ai.models.generateContent({
-      model: 'gemini-2.5-flash',
-      contents: prompt,
-      config: {
-        responseMimeType: "application/json",
-        responseSchema: {
-          type: Type.OBJECT,
-          properties: {
-            title: { type: Type.STRING },
-            executiveSummary: { type: Type.STRING },
-            solutionHighlights: { type: Type.ARRAY, items: { type: Type.STRING } },
-            techStack: { type: Type.ARRAY, items: { type: Type.STRING } },
-            timeline: { 
-              type: Type.ARRAY, 
-              items: { 
-                type: Type.OBJECT,
-                properties: {
-                  phase: { type: Type.STRING },
-                  duration: { type: Type.STRING }
-                }
-              } 
-            },
-            investmentValue: { type: Type.STRING },
-            investmentDetails: { type: Type.STRING },
+    // Corrida entre a API e o Timeout
+    const response = await Promise.race([
+      ai.models.generateContent({
+        model: 'gemini-2.5-flash',
+        contents: prompt,
+        config: {
+          responseMimeType: "application/json",
+          responseSchema: {
+            type: Type.OBJECT,
+            properties: {
+              title: { type: Type.STRING },
+              executiveSummary: { type: Type.STRING },
+              solutionHighlights: { type: Type.ARRAY, items: { type: Type.STRING } },
+              techStack: { type: Type.ARRAY, items: { type: Type.STRING } },
+              timeline: { 
+                type: Type.ARRAY, 
+                items: { 
+                  type: Type.OBJECT,
+                  properties: {
+                    phase: { type: Type.STRING },
+                    duration: { type: Type.STRING }
+                  }
+                } 
+              },
+              investmentValue: { type: Type.STRING },
+              investmentDetails: { type: Type.STRING },
+            }
           }
         }
-      }
-    });
+      }),
+      timeoutPromise
+    ]);
 
-    const jsonText = response.text;
+    // Se chegou aqui, não deu timeout. Mas TypeScript não sabe qual promise resolveu.
+    // Fazemos cast seguro.
+    const apiResponse = response as any;
+
+    let jsonText = apiResponse.text;
     if (!jsonText) {
-      console.error("Empty response from Gemini");
-      return null;
+      return { success: false, error: "A IA retornou uma resposta vazia." };
     }
     
-    return JSON.parse(jsonText) as ProposalData;
+    // LIMPEZA CRÍTICA
+    jsonText = jsonText.replace(/```json/g, '').replace(/```/g, '').trim();
 
-  } catch (error) {
+    try {
+        const data = JSON.parse(jsonText) as ProposalData;
+        return { success: true, data };
+    } catch (parseError) {
+        console.error("Erro ao parsear JSON da proposta:", parseError, jsonText);
+        return { success: false, error: "A IA gerou um formato inválido. Tente novamente." };
+    }
+
+  } catch (error: any) {
     console.error("Erro ao gerar proposta:", error);
-    return null;
+    
+    if (error.message === "TIMEOUT_EXCEEDED") {
+        return { success: false, error: "⏳ Tempo limite excedido (60s). A IA demorou muito para responder. Tente novamente." };
+    }
+    if (error.toString().includes("403") || error.toString().includes("API key")) {
+        return { success: false, error: "🔑 Erro de autenticação. Verifique a Chave de API." };
+    }
+    if (error.toString().includes("503") || error.toString().includes("500")) {
+        return { success: false, error: "🔥 O servidor do Google está instável no momento." };
+    }
+
+    return { success: false, error: `Erro técnico: ${error.message || "Desconhecido"}` };
   }
 };
