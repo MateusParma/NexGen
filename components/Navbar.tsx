@@ -1,5 +1,6 @@
+
 import React, { useState, useEffect } from 'react';
-import { Menu, X, Sparkles, User, Lock, LayoutDashboard, LogIn } from 'lucide-react';
+import { Menu, X, Sparkles, User, Lock, LayoutDashboard, LogIn, Rocket } from 'lucide-react';
 import { PageView, User as UserType } from '../types';
 
 interface NavbarProps {
@@ -81,6 +82,14 @@ const Navbar: React.FC<NavbarProps> = ({ onNavigate, currentUser, onLogout }) =>
             </a>
           ))}
 
+          {/* New Startup Builder Link */}
+          <button 
+            onClick={() => onNavigate('startup-builder')}
+            className="flex items-center gap-1.5 text-purple-400 hover:text-purple-300 transition-colors text-sm font-bold uppercase tracking-wide border border-purple-500/30 bg-purple-500/10 px-3 py-1.5 rounded-lg"
+          >
+            <Rocket className="w-3 h-3" /> Startup Builder
+          </button>
+
           {currentUser ? (
             <div className="flex items-center gap-4 pl-4 border-l border-slate-700">
                <button 
@@ -138,6 +147,13 @@ const Navbar: React.FC<NavbarProps> = ({ onNavigate, currentUser, onLogout }) =>
             </a>
           ))}
           
+          <button 
+            onClick={() => { onNavigate('startup-builder'); setIsMobileMenuOpen(false); }}
+            className="text-left text-purple-400 font-bold py-2 border-b border-slate-800 flex items-center gap-2"
+          >
+            <Rocket className="w-4 h-4" /> Startup Builder
+          </button>
+
           {currentUser ? (
              <button 
               onClick={() => {

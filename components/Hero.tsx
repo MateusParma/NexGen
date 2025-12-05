@@ -1,3 +1,5 @@
+
+
 import React, { useState, useEffect } from 'react';
 import { ArrowRight, Zap } from 'lucide-react';
 import { PageView } from '../types';
@@ -35,6 +37,12 @@ const Hero: React.FC<HeroProps> = ({ onNavigate }) => {
     onNavigate('ai-consultant');
   };
 
+  const handleProjectsClick = (e: React.MouseEvent) => {
+    e.preventDefault();
+    // Leva ao dashboard do usuário. Se não estiver logado, o App.tsx redireciona para login.
+    onNavigate('user-dashboard'); 
+  };
+
   return (
     <section id="home" className="relative min-h-screen flex items-center pt-20 overflow-hidden">
       {/* Background Gradients */}
@@ -68,13 +76,13 @@ const Hero: React.FC<HeroProps> = ({ onNavigate }) => {
               <Zap className="w-5 h-5 group-hover:text-yellow-300 transition-colors" />
               Falar com Consultor IA
             </button>
-            <a 
-              href="#portfolio" 
+            <button 
+              onClick={handleProjectsClick}
               className="flex items-center justify-center gap-2 bg-transparent border border-slate-600 hover:border-white text-white px-8 py-4 rounded-full font-medium transition-all hover:bg-slate-800"
             >
               Ver Projetos
               <ArrowRight className="w-4 h-4" />
-            </a>
+            </button>
           </div>
         </div>
 

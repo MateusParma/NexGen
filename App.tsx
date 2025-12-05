@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import Navbar from './components/Navbar';
 import Hero from './components/Hero';
@@ -15,6 +16,7 @@ import AdminDashboard from './components/AdminLeads';
 import UserDashboard from './components/UserDashboard';
 import UserProjectDetail from './components/UserProjectDetail';
 import Login from './components/Login';
+import StartupBuilder from './components/StartupBuilder'; // Novo Componente
 import { PageView, Lead, User, ProjectIdea } from './types';
 import { storageService } from './services/storageService';
 
@@ -158,6 +160,10 @@ function App() {
 
   // Filtrar projetos para o usuário logado
   const userProjects = projects.filter(p => p.ownerId === currentUser?.id);
+
+  if (currentPage === 'startup-builder') {
+    return <StartupBuilder onBack={() => setCurrentPage('home')} onNavigate={handleNavigate} />;
+  }
 
   if (currentPage === 'ai-consultant') {
     return <AiConsultantPage onBack={() => setCurrentPage('home')} onRegisterLead={handleAddLead} />;

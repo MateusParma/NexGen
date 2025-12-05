@@ -1,4 +1,5 @@
 
+
 export enum ServiceType {
   WEB_DEV = 'Desenvolvimento Web',
   MOBILE_APPS = 'Aplicativos Mobile',
@@ -23,8 +24,9 @@ export type PageView =
   | 'ai-consultant'
   | 'admin-dashboard'
   | 'user-dashboard'
-  | 'user-project-detail' // Nova página
-  | 'auth-login';
+  | 'user-project-detail' 
+  | 'auth-login'
+  | 'startup-builder'; // Nova ferramenta
 
 export interface Project {
   id: number;
@@ -46,20 +48,20 @@ export interface User {
   id: string;
   name: string;
   email: string;
-  phone?: string; // Adicionado para contato de convidado
+  phone?: string; 
   role: UserRole;
   avatar?: string;
-  password?: string; // Adicionado para autenticação
+  password?: string; 
 }
 
 export interface ProjectIdea {
   id: string;
-  ownerId?: string; // Adicionado para vincular ao usuário
+  ownerId?: string; 
   title: string;
   description: string;
   features: string[];
   budgetRange?: string;
-  createdAt: Date | string; // Permitir string para compatibilidade JSON
+  createdAt: Date | string; 
   images: string[]; 
   driveLink?: string;
 }
@@ -73,14 +75,14 @@ export interface ProposalData {
   title: string;
   subtitle?: string;
   executiveSummary: string;
-  scope: ProposalScopeItem[]; // Novo: Lista detalhada do escopo
+  scope: ProposalScopeItem[]; 
   techStack: string[];
-  timeline: { phase: string; duration: string; deliverable: string }[]; // Novo: Entregáveis
-  marketingStrategy?: string; // Novo: Estratégia de crescimento
-  maintenancePlan?: string; // Novo: Plano de suporte
+  timeline: { phase: string; duration: string; deliverable: string }[]; 
+  marketingStrategy?: string; 
+  maintenancePlan?: string; 
   investmentValue: string;
   investmentDetails: string;
-  whyUs?: string; // Novo: Diferenciais
+  whyUs?: string; 
 }
 
 export interface Lead {
@@ -88,9 +90,51 @@ export interface Lead {
   name: string;
   contact: string;
   interest: string;
-  createdAt: Date | string; // Permitir string para compatibilidade JSON
+  createdAt: Date | string; 
   status: 'New' | 'Contacted' | 'Confirmed' | 'Cancelled';
   projectImage?: string; 
   projectData?: ProjectIdea; 
   generatedProposal?: ProposalData; 
+}
+
+// --- Interfaces para o Startup Builder ---
+
+export interface StartupFeasibility {
+  score: number; // 0 a 100
+  verdict: "Aprovado" | "Reprovado" | "Incerto";
+  summary: string; // Comentário estilo Shark Tank
+  strengths: string[];
+  weaknesses: string[];
+}
+
+export interface StartupBudget {
+  mvp: { 
+    range: string; 
+    description: string; 
+    timeline: string; 
+  };
+  ideal: { 
+    range: string; 
+    description: string; 
+    timeline: string; 
+  };
+}
+
+export interface StartupAnalysis {
+  name: string;
+  slogan: string;
+  description: string;
+  logoSvg: string; 
+  colors: string[];
+  
+  // Business Plan
+  targetAudience: string;
+  revenueModel: string;
+  marketingStrategy: string;
+  
+  // Orçamentos
+  budgets: StartupBudget;
+  
+  // Site
+  websiteHtml: string; // Landing Page Completa
 }

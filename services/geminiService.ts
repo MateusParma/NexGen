@@ -1,6 +1,6 @@
 
 import { GoogleGenAI, FunctionDeclaration, Type } from "@google/genai";
-import { ChatMessage, Lead, ProjectIdea, ProposalData } from "../types";
+import { ChatMessage, Lead, ProjectIdea, ProposalData, StartupAnalysis, StartupFeasibility } from "../types";
 
 // --- SISTEMA DE DIAGNÓSTICO DE CHAVE DE API ---
 
@@ -310,5 +310,144 @@ export const generateProposal = async (project: ProjectIdea): Promise<{ success:
     if (error.toString().includes("403")) return { success: false, error: "Erro de Permissão (API Key)." };
     
     return { success: false, error: "Não foi possível gerar a proposta agora. Tente novamente." };
+  }
+};
+
+/**
+ * ETAPA 1: ANÁLISE DE VIABILIDADE (Shark Tank)
+ */
+export const analyzeFeasibility = async (idea: string): Promise<{ success: boolean; data?: StartupFeasibility; error?: string }> => {
+  if (!ai) return { success: false, error: "Chave de API não configurada." };
+
+  const prompt = `
+    Aja como um Investidor de Venture Capital (Shark Tank) extremamente experiente e crítico.
+    
+    IDEIA: "${idea}"
+
+    Avalie a viabilidade desta ideia para o mercado digital atual.
+    Seja honesto e direto. Não tenha medo de criticar se a ideia for ruim.
+
+    Retorne APENAS um JSON com esta estrutura:
+    {
+      "score": (número de 0 a 100),
+      "verdict": "Aprovado" ou "Reprovado" ou "Incerto" (Use Aprovado apenas se score > 70),
+      "summary": "Um comentário curto (max 2 frases) com sua opinião direta sobre o potencial.",
+      "strengths": ["Ponto forte 1", "Ponto forte 2", "Ponto forte 3"],
+      "weaknesses": ["Ponto fraco 1", "Ponto fraco 2", "Ponto fraco 3"]
+    }
+  `;
+
+  try {
+    const response = await ai.models.generateContent({
+      model: 'gemini-2.5-flash',
+      contents: prompt,
+      config: { responseMimeType: "application/json", temperature: 0.6 }
+    });
+
+    let jsonText = response.text?.replace(/```json/g, '').replace(/```/g, '').trim() || "{}";
+    return { success: true, data: JSON.parse(jsonText) };
+  } catch (error) {
+    return { success: false, error: "Erro na análise de viabilidade." };
+  }
+};
+
+/**
+ * ETAPA 2: GERAÇÃO COMPLETA DA STARTUP (SPLIT STRATEGY)
+ * Resolvemos o problema de timeout e JSON quebrado dividindo em 2 chamadas.
+ */
+export const generateFullStartup = async (idea: string): Promise<{ success: boolean; data?: StartupAnalysis; error?: string }> => {
+  if (!ai) return { success: false, error: "Chave de API não configurada." };
+
+  // 1. GERAÇÃO DE DADOS DE NEGÓCIO (JSON)
+  const businessPrompt = `
+    Aja como um Cofundador Técnico e Diretor de Produto (CPO).
+    IDEIA APROVADA: "${idea}"
+    
+    TAREFA: Desenvolver a startup completa (Business Plan, Branding, Orçamentos).
+    
+    ESTRUTURA DO JSON (Estrita):
+    {
+      "name": "Nome moderno e curto (Ex: Uber, Airbnb, Stripe)",
+      "slogan": "Slogan curto de impacto",
+      "description": "Pitch de 2 parágrafos vendendo a visão.",
+      "logoSvg": "Código SVG VÁLIDO (apenas a string <svg...>) para um ícone minimalista e moderno. ViewBox 0 0 100 100. Use cores vivas.",
+      "colors": ["Hex1", "Hex2", "Hex3"],
+      
+      "targetAudience": "Definição do público alvo e persona.",
+      "revenueModel": "Como a empresa ganha dinheiro (SaaS, Ads, Marketplace, etc).",
+      "marketingStrategy": "Estratégia de Go-To-Market inicial.",
+
+      "budgets": {
+        "mvp": { 
+          "range": "Ex: €2.000 - €4.000", 
+          "description": "Versão simplificada apenas com funcionalidades essenciais.", 
+          "timeline": "3-4 Semanas" 
+        },
+        "ideal": { 
+          "range": "Ex: €8.000 - €12.000", 
+          "description": "Produto completo com painel admin, app nativo e integrações.", 
+          "timeline": "2-3 Meses" 
+        }
+      }
+    }
+  `;
+
+  try {
+    // --- Chamada 1: Dados de Negócio (JSON) ---
+    const businessResponse = await ai.models.generateContent({
+      model: 'gemini-2.5-flash',
+      contents: businessPrompt,
+      config: { responseMimeType: "application/json", temperature: 0.7 }
+    });
+
+    let jsonText = businessResponse.text?.replace(/```json/g, '').replace(/```/g, '').trim() || "{}";
+    const businessData = JSON.parse(jsonText) as Partial<StartupAnalysis>;
+
+    // --- Chamada 2: Geração de Site (HTML Puro) ---
+    // Isso evita que o HTML quebre o JSON da resposta anterior
+    const sitePrompt = `
+      Aja como um Desenvolvedor Frontend Sênior Especialista em Tailwind CSS.
+      
+      PROJETO: "${businessData.name}" - ${businessData.slogan}
+      CORES: ${businessData.colors?.join(', ')}
+      DESCRIÇÃO: ${businessData.description}
+
+      TAREFA: Crie o código HTML COMPLETO para a Landing Page (Single Page).
+      
+      REGRAS TÉCNICAS:
+      - Use Tailwind CSS via CDN.
+      - NÃO use Markdown. Retorne APENAS o código HTML cru.
+      - NÃO coloque tags <html>, <head> ou <body>. Retorne apenas o conteúdo que vai dentro do body.
+      - Use 'min-h-screen' para permitir rolagem.
+      - O texto dos serviços deve ser REAL e PERSUASIVO (Proibido Lorem Ipsum).
+      - IMPORTANTE: Todos os botões (CTA) devem ter classes como 'cursor-pointer', 'hover:scale-105', 'transition-all' para parecerem clicáveis.
+      
+      ESTRUTURA:
+      1. <header> com Logo (Texto ${businessData.name}) e Nav. (Use container mx-auto).
+      2. <section id='hero'> Impactante com cores da marca.
+      3. <section id='features'> 3 Cards com ícones (pode usar emoji ou svg inline simples).
+      4. <section id='pricing'> Tabela de preços.
+      5. <footer>.
+    `;
+
+    const siteResponse = await ai.models.generateContent({
+      model: 'gemini-2.5-flash',
+      contents: sitePrompt,
+      config: { responseMimeType: "text/plain", temperature: 0.7 }
+    });
+
+    const websiteHtml = siteResponse.text || "<p>Erro ao gerar site.</p>";
+
+    // Junta tudo
+    const fullResult: StartupAnalysis = {
+      ...businessData as any,
+      websiteHtml: websiteHtml
+    };
+
+    return { success: true, data: fullResult };
+
+  } catch (error) {
+    console.error("Erro na geração completa:", error);
+    return { success: false, error: "Erro na geração completa. Tente novamente." };
   }
 };
