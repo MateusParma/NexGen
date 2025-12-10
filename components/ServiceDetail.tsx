@@ -6,14 +6,20 @@ import { PageView, Lead } from '../types';
 interface ServiceDetailProps {
   page: PageView;
   onBack: () => void;
+  onNavigate: (page: PageView) => void;
   onRegisterLead?: (lead: Omit<Lead, 'id' | 'createdAt' | 'status'>) => void;
 }
 
-const ServiceDetail: React.FC<ServiceDetailProps> = ({ page, onBack, onRegisterLead }) => {
+const ServiceDetail: React.FC<ServiceDetailProps> = ({ page, onBack, onNavigate, onRegisterLead }) => {
   
   useEffect(() => {
     window.scrollTo(0, 0);
   }, [page]);
+
+  const handleBudgetRequest = () => {
+    // Redireciona para o fluxo de cadastro de projeto
+    onNavigate('user-dashboard');
+  };
 
   const getContent = () => {
     switch (page) {
@@ -185,14 +191,14 @@ const ServiceDetail: React.FC<ServiceDetailProps> = ({ page, onBack, onRegisterL
             </ul>
 
             <div className="mt-8 pt-8 border-t border-slate-700">
-              <a 
-                href="#contact" 
+              <button 
+                onClick={handleBudgetRequest}
                 className="block w-full text-center bg-primary hover:bg-blue-600 text-white font-bold py-4 rounded-xl transition-all shadow-lg shadow-blue-900/20"
               >
                 Solicitar Orçamento para este Serviço
-              </a>
+              </button>
               <p className="text-center text-xs text-slate-500 mt-3">
-                Resposta em até 24 horas úteis.
+                Você será redirecionado para o painel de projetos.
               </p>
             </div>
           </div>

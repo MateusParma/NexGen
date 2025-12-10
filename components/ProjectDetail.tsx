@@ -6,6 +6,7 @@ import { PageView, Lead } from '../types';
 interface ProjectDetailProps {
   page: PageView;
   onBack: () => void;
+  onNavigate: (page: PageView) => void;
   onRegisterLead?: (lead: Omit<Lead, 'id' | 'createdAt' | 'status'>) => void;
 }
 
@@ -23,11 +24,15 @@ interface ProjectData {
   galleryImages: string[];
 }
 
-const ProjectDetail: React.FC<ProjectDetailProps> = ({ page, onBack, onRegisterLead }) => {
+const ProjectDetail: React.FC<ProjectDetailProps> = ({ page, onBack, onNavigate, onRegisterLead }) => {
   
   useEffect(() => {
     window.scrollTo(0, 0);
   }, [page]);
+
+  const handleBudgetRequest = () => {
+    onNavigate('user-dashboard');
+  };
 
   // Database of projects indexed by slug
   const projectsData: Record<string, ProjectData> = {
@@ -220,10 +225,13 @@ const ProjectDetail: React.FC<ProjectDetailProps> = ({ page, onBack, onRegisterL
             <div className="bg-primary rounded-2xl p-8 shadow-lg shadow-blue-900/30 text-center">
               <h3 className="text-xl font-bold text-white mb-2">Gostou deste projeto?</h3>
               <p className="text-blue-100 text-sm mb-6">Podemos construir algo similar para sua empresa.</p>
-              <a href="#contact" className="inline-flex items-center justify-center w-full bg-white text-primary font-bold py-3 rounded-xl hover:bg-blue-50 transition-colors">
+              <button 
+                onClick={handleBudgetRequest} 
+                className="inline-flex items-center justify-center w-full bg-white text-primary font-bold py-3 rounded-xl hover:bg-blue-50 transition-colors"
+              >
                 Solicitar Orçamento
                 <ExternalLink className="w-4 h-4 ml-2" />
-              </a>
+              </button>
             </div>
           </div>
 

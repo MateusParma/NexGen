@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+
+import React, { useState, useEffect } from 'react';
 import { User, ProjectIdea, PageView } from '../types';
 import { ArrowLeft, LogOut, Plus, Trash2, Eye, Link as LinkIcon, Upload, X, ImageIcon, Loader2, Bot, Sparkles } from 'lucide-react';
 
@@ -36,6 +37,29 @@ const UserDashboard: React.FC<UserDashboardProps> = ({
   
   const [uploadedImages, setUploadedImages] = useState<string[]>([]);
   const [isProcessingImages, setIsProcessingImages] = useState(false);
+
+  // --- STARTUP BUILDER INTEGRATION ---
+  useEffect(() => {
+    // Verifica se existe um projeto pendente vindo do Startup Builder
+    const pendingProject = localStorage.getItem('nexgen_pending_project');
+    if (pendingProject) {
+      try {
+        const parsed = JSON.parse(pendingProject);
+        setNewIdea({
+            title: parsed.title || '',
+            description: parsed.description || '',
+            budget: parsed.budget || '',
+            features: parsed.features || '',
+            driveLink: ''
+        });
+        setShowForm(true);
+        // Limpa para não abrir novamente
+        localStorage.removeItem('nexgen_pending_project');
+      } catch (e) {
+        console.error("Erro ao carregar projeto pendente", e);
+      }
+    }
+  }, []);
 
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files.length > 0) {
@@ -168,17 +192,12 @@ const UserDashboard: React.FC<UserDashboardProps> = ({
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-slate-400 mb-2">Orçamento Estimado</label>
-                  <select 
+                  <input 
                     value={newIdea.budget}
                     onChange={e => setNewIdea({...newIdea, budget: e.target.value})}
                     className="w-full bg-slate-900 border border-slate-700 rounded-lg p-3 text-white focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary transition-all"
-                  >
-                    <option value="">Selecione...</option>
-                    <option value="< €1.000">Menos de €1.000 (MVP)</option>
-                    <option value="€1.000 - €5.000">€1.000 - €5.000 (Pequeno)</option>
-                    <option value="€5.000 - €15.000">€5.000 - €15.000 (Médio)</option>
-                    <option value="> €15.000">Mais de €15.000 (Corporativo)</option>
-                  </select>
+                    placeholder="Ex: €1.000 - €5.000 ou A Definir"
+                  />
                 </div>
               </div>
 

@@ -164,11 +164,19 @@ const UserProjectDetail: React.FC<UserProjectDetailProps> = ({ project, currentU
           {/* PDF HEADER */}
           <div className="border-b-2 border-slate-100 pb-8 mb-8 flex justify-between items-start">
             <div>
-              <div className="flex items-center gap-2 text-2xl font-bold text-blue-600 tracking-tighter mb-2">
-                <div className="bg-blue-600 p-1.5 rounded-lg">
-                  <Sparkles className="w-5 h-5 text-white" />
-                </div>
-                NexGen<span className="text-slate-900">Digital</span>
+              <div className="flex items-center gap-3 text-2xl font-bold text-blue-600 tracking-tighter mb-2">
+                 <div className="w-32 h-32 bg-slate-900 rounded-lg flex items-center justify-center border border-slate-700 overflow-hidden">
+                    <img 
+                      src="https://github.com/MateusParma/NexGen/blob/main/3.png?raw=true" 
+                      alt="NexGen Logo" 
+                      className="w-full h-full object-contain"
+                    />
+                 </div>
+                 <img 
+                    src="https://github.com/MateusParma/NexGen/blob/main/2.png?raw=true" 
+                    alt="NexGen Digital" 
+                    className="h-24 object-contain filter invert" 
+                 />
               </div>
               <p className="text-slate-500 text-sm">Design • Tecnologia • Inteligência Artificial</p>
               <div className="text-xs text-slate-400 mt-1">Lisboa, Portugal • Tropea, Itália</div>

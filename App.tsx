@@ -52,6 +52,9 @@ function App() {
   const handleNavigate = (page: PageView) => {
     // Auth Guard
     if ((page === 'admin-dashboard' || page === 'user-dashboard' || page === 'user-project-detail') && !currentUser) {
+      // Se tentar acessar dashboard sem logar, vai pro login
+      // O Login component saberá para onde voltar se implementarmos lógica de redirect, 
+      // mas por enquanto ele joga para o dashboard apropriado ao logar.
       setCurrentPage('auth-login');
       return;
     }
@@ -240,14 +243,24 @@ function App() {
           </>
         ) : isServicePage ? (
           <>
-            <ServiceDetail page={currentPage} onBack={() => setCurrentPage('home')} onRegisterLead={handleAddLead} />
+            <ServiceDetail 
+              page={currentPage} 
+              onBack={() => setCurrentPage('home')} 
+              onNavigate={handleNavigate} 
+              onRegisterLead={handleAddLead} 
+            />
             <div className="border-t border-slate-800">
               <Contact onRegisterLead={handleAddLead} />
             </div>
           </>
         ) : isProjectPage ? (
            <>
-            <ProjectDetail page={currentPage} onBack={() => setCurrentPage('home')} onRegisterLead={handleAddLead} />
+            <ProjectDetail 
+              page={currentPage} 
+              onBack={() => setCurrentPage('home')} 
+              onNavigate={handleNavigate}
+              onRegisterLead={handleAddLead} 
+            />
              <div className="border-t border-slate-800">
               <Contact onRegisterLead={handleAddLead} />
             </div>

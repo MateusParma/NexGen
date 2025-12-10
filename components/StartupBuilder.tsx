@@ -1,9 +1,7 @@
-
 import React, { useState } from 'react';
-import { ArrowLeft, Sparkles, Rocket, Loader2, Target, TrendingUp, AlertTriangle, Code, Play, CheckCircle, XCircle, DollarSign, Layout, Monitor, MessageCircle } from 'lucide-react';
+import { ArrowLeft, ArrowRight, Sparkles, Loader2, Target, TrendingUp, AlertTriangle, Code, Play, CheckCircle, XCircle, DollarSign, Layout, Monitor, MessageCircle, Globe, Lightbulb, PieChart, Users, Sword, Zap, ShieldCheck, Rocket } from 'lucide-react';
 import { StartupAnalysis, StartupFeasibility } from '../types';
-import { analyzeFeasibility, generateFullStartup } from '../services/geminiService';
-import { saveToGoogleSheet } from '../services/googleSheetService';
+import { analyzeFeasibility, generateStartupPlan, generateStartupWebsite } from '../services/geminiService';
 
 interface StartupBuilderProps {
   onBack: () => void;
@@ -12,16 +10,21 @@ interface StartupBuilderProps {
 
 const StartupBuilder: React.FC<StartupBuilderProps> = ({ onBack, onNavigate }) => {
   const [idea, setIdea] = useState('');
+  const [inputType, setInputType] = useState<'idea' | 'website'>('idea');
   
-  // States do Fluxo
-  const [step, setStep] = useState<'input' | 'analyzing_feasibility' | 'feasibility_result' | 'analyzing_full' | 'full_result'>('input');
+  // Flow State
+  const [step, setStep] = useState<'input' | 'analyzing_feasibility' | 'feasibility_result' | 'analyzing_plan' | 'full_result'>('input');
   
+  // Data State
   const [feasibility, setFeasibility] = useState<StartupFeasibility | null>(null);
   const [fullResult, setFullResult] = useState<StartupAnalysis | null>(null);
+  
+  // UI State
   const [activeTab, setActiveTab] = useState<'business' | 'budget' | 'website'>('business');
-  const [isRedirecting, setIsRedirecting] = useState(false);
+  const [isLoadingWebsite, setIsLoadingWebsite] = useState(false);
+  const [websiteGenerated, setWebsiteGenerated] = useState(false);
 
-  // Etapa 1: Análise Rápida
+  // --- STEP 1: Feasibility ---
   const handleFeasibilityCheck = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!idea.trim()) return;
@@ -38,354 +41,388 @@ const StartupBuilder: React.FC<StartupBuilderProps> = ({ onBack, onNavigate }) =
     }
   };
 
-  // Etapa 2: Geração Completa
-  const handleFullGeneration = async () => {
-    setStep('analyzing_full');
-    const response = await generateFullStartup(idea);
+  // --- STEP 2: Strategic Plan (JSON Only) ---
+  const handlePlanGeneration = async () => {
+    setStep('analyzing_plan');
+    const response = await generateStartupPlan(idea, inputType);
 
     if (response.success && response.data) {
       setFullResult(response.data);
       setStep('full_result');
+      setActiveTab('business'); // Default tab
     } else {
-      alert("Erro ao gerar startup completa.");
+      alert("Erro ao gerar plano estratégico.");
       setStep('feasibility_result');
     }
   };
 
-  // --- LÓGICA DE CAPTURA DE CLIQUE NO PREVIEW ---
-  const handlePreviewClick = async (e: React.MouseEvent<HTMLDivElement>) => {
-    // 1. Identifica se o clique foi em um botão ou link (ou filho deles)
-    const target = e.target as HTMLElement;
-    const clickableElement = target.closest('a, button');
-
-    if (clickableElement && fullResult) {
-      e.preventDefault(); // Impede erro de navegação
+  // --- STEP 3: Website Generation (Lazy Load) ---
+  const handleWebsiteTabClick = async () => {
+    setActiveTab('website');
+    
+    // Only generate if not already generated
+    if (!websiteGenerated && fullResult && !isLoadingWebsite) {
+      setIsLoadingWebsite(true);
+      const response = await generateStartupWebsite(fullResult);
       
-      if (isRedirecting) return;
-      setIsRedirecting(true);
-
-      const confirmAction = window.confirm(`Gostou do conceito da ${fullResult.name}? \n\nVamos te redirecionar para o WhatsApp para solicitar o desenvolvimento deste projeto real.`);
-      
-      if (!confirmAction) {
-        setIsRedirecting(false);
-        return;
+      if (response.success && response.html) {
+        setFullResult(prev => prev ? { ...prev, websiteHtml: response.html } : null);
+        setWebsiteGenerated(true);
+      } else {
+        alert("Erro ao gerar o design do site.");
       }
+      setIsLoadingWebsite(false);
+    }
+  };
 
-      // 2. Salva Lead no Google Sheets
-      const interestText = `Startup Builder: ${fullResult.name} - Orçamento Estimado: ${fullResult.budgets.mvp.range}`;
-      await saveToGoogleSheet({
-        name: "Lead via Startup Builder",
-        contact: "WhatsApp Click",
-        interest: interestText,
-        details: {
-          idea: fullResult.description,
-          budget_mvp: fullResult.budgets.mvp.range,
-          budget_ideal: fullResult.budgets.ideal.range
-        }
-      });
+  // --- CONVERSION LOGIC ---
+  const handleConversion = (source: string) => {
+    if (!fullResult) return;
 
-      // 3. Monta mensagem e abre WhatsApp
-      const adminPhone = "351925460063";
-      const text = `🚀 *PEDIDO DE PROJETO - NEXGEN BUILDER*\n\n` +
-                   `Acabei de gerar uma startup na IA e quero um orçamento!\n\n` +
-                   `*Projeto:* ${fullResult.name}\n` +
-                   `*Slogan:* ${fullResult.slogan}\n` +
-                   `*MVP Estimado:* ${fullResult.budgets.mvp.range}\n\n` +
-                   `Podemos agendar uma reunião?`;
-
-      const whatsappUrl = `https://wa.me/${adminPhone}?text=${encodeURIComponent(text)}`;
-      window.open(whatsappUrl, '_blank');
-      
-      setIsRedirecting(false);
+    const confirmAction = window.confirm(`Deseja salvar o projeto "${fullResult.name}" e solicitar um orçamento para o pacote ${source}?`);
+    
+    if (confirmAction) {
+       const pendingProject = {
+          title: fullResult.name,
+          description: `ORIGEM: Startup Builder (${inputType === 'website' ? 'Redesign' : 'Nova Ideia'})\nPACOTE: ${source}\n\nPROBLEMA: ${fullResult.problem}\nSOLUÇÃO: ${fullResult.solution}\n\nSLOGAN: ${fullResult.slogan}`,
+          budget: source === 'MVP' ? fullResult.budgets.mvp.range : fullResult.budgets.ideal.range,
+          features: [
+            "Landing Page de Alta Conversão", 
+            "Painel Administrativo", 
+            "Integração de Pagamentos",
+            ...(source === 'Ideal' ? ["App Mobile", "Automação IA"] : [])
+          ],
+       };
+       localStorage.setItem('nexgen_pending_project', JSON.stringify(pendingProject));
+       onNavigate('user-dashboard');
     }
   };
 
   return (
     <div className="min-h-screen bg-black text-white font-sans selection:bg-purple-500 selection:text-white">
       
-      {/* Header Minimalista */}
+      {/* Navigation */}
       <nav className="border-b border-white/10 bg-black/50 backdrop-blur-md sticky top-0 z-50">
-        <div className="container mx-auto px-6 h-16 flex items-center justify-between">
-          <button 
-            onClick={onBack}
-            className="text-slate-400 hover:text-white flex items-center gap-2 text-sm font-medium transition-colors"
-          >
-            <ArrowLeft className="w-4 h-4" /> Voltar ao Site
+        <div className="container mx-auto px-6 h-20 flex items-center justify-between">
+          <button onClick={onBack} className="text-slate-400 hover:text-white flex items-center gap-2 text-sm font-medium transition-colors">
+            <ArrowLeft className="w-4 h-4" /> Sair
           </button>
-          <div className="flex items-center gap-2">
-            <div className="bg-gradient-to-r from-purple-600 to-pink-600 p-1.5 rounded-lg">
-              <Rocket className="w-4 h-4 text-white" />
+          <div className="flex items-center gap-3">
+            <div className="w-[70px] h-[70px] rounded-md overflow-hidden flex items-center justify-center">
+               <img 
+                 src="https://github.com/MateusParma/NexGen/blob/main/3.png?raw=true" 
+                 alt="NexGen Logo" 
+                 className="w-full h-full object-contain"
+               />
             </div>
-            <span className="font-bold tracking-tight">NexGen <span className="text-purple-400">Startup Builder</span></span>
+             <img 
+                src="https://github.com/MateusParma/NexGen/blob/main/2.png?raw=true" 
+                alt="NexGen"
+                className="h-16 object-contain"
+              />
           </div>
         </div>
       </nav>
 
       <main className="container mx-auto px-6 py-12">
         
-        {/* STEP 1: INPUT */}
+        {/* === INPUT SCREEN === */}
         {step === 'input' && (
           <div className="max-w-3xl mx-auto text-center animate-in fade-in slide-in-from-bottom-4 duration-700">
             <div className="mb-8 relative inline-block">
-               <div className="absolute inset-0 bg-purple-600 blur-[60px] opacity-30 rounded-full"></div>
-               <Sparkles className="w-16 h-16 text-purple-400 relative z-10 mx-auto" />
+               <div className="absolute inset-0 bg-purple-600 blur-[80px] opacity-40 rounded-full"></div>
+               <Sparkles className="w-20 h-20 text-purple-400 relative z-10 mx-auto" />
             </div>
-            <h1 className="text-5xl md:text-7xl font-black mb-6 tracking-tight">
-              Sua ideia vale <br />
-              <span className="text-transparent bg-clip-text bg-gradient-to-r from-purple-400 via-pink-400 to-orange-400 animate-pulse">Milhões?</span>
+            <h1 className="text-5xl md:text-7xl font-black mb-6 tracking-tight leading-tight">
+              Construa o Futuro <br />
+              <span className="text-transparent bg-clip-text bg-gradient-to-r from-purple-400 via-pink-400 to-blue-400 animate-pulse">Em Segundos.</span>
             </h1>
-            <p className="text-xl text-slate-400 mb-12 max-w-2xl mx-auto leading-relaxed">
-              O "Shark Tank" da Inteligência Artificial. Descreva sua ideia e descubra se ela tem futuro antes de investir um centavo.
+            <p className="text-xl text-slate-400 mb-10 max-w-2xl mx-auto leading-relaxed">
+              Transforme uma ideia vaga em um Plano de Negócios, Estratégia de Mercado e um Site de Alta Conversão usando IA Generativa.
             </p>
 
-            <form onSubmit={handleFeasibilityCheck} className="relative max-w-xl mx-auto">
-              <textarea 
-                value={idea}
-                onChange={(e) => setIdea(e.target.value)}
-                placeholder="Ex: Um aplicativo para alugar ferramentas de construção entre vizinhos..."
-                className="w-full bg-slate-900/50 border border-slate-700 rounded-2xl p-6 text-lg text-white placeholder-slate-500 focus:border-purple-500 focus:ring-1 focus:ring-purple-500 outline-none resize-none shadow-2xl transition-all"
-                rows={4}
-              />
-              <button 
-                type="submit"
-                disabled={!idea.trim()}
-                className="absolute bottom-4 right-4 bg-white text-black hover:bg-purple-50 px-6 py-2 rounded-xl font-bold transition-all transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
-              >
-                Validar Ideia <Target className="w-4 h-4" />
+            <div className="flex justify-center gap-4 mb-8">
+              <button onClick={() => setInputType('idea')} className={`flex items-center gap-2 px-6 py-3 rounded-full font-bold transition-all border ${inputType === 'idea' ? 'bg-purple-600 border-purple-500 text-white shadow-lg shadow-purple-900/40' : 'bg-transparent border-slate-700 text-slate-400 hover:border-slate-500'}`}>
+                <Lightbulb className="w-4 h-4" /> Validar Nova Ideia
               </button>
+              <button onClick={() => setInputType('website')} className={`flex items-center gap-2 px-6 py-3 rounded-full font-bold transition-all border ${inputType === 'website' ? 'bg-blue-600 border-blue-500 text-white shadow-lg shadow-blue-900/40' : 'bg-transparent border-slate-700 text-slate-400 hover:border-slate-500'}`}>
+                <Globe className="w-4 h-4" /> Analisar Site Existente
+              </button>
+            </div>
+
+            <form onSubmit={handleFeasibilityCheck} className="relative max-w-xl mx-auto group">
+              <div className="bg-slate-900/80 border border-slate-700 rounded-2xl p-2 transition-all group-focus-within:border-purple-500 group-focus-within:ring-1 group-focus-within:ring-purple-500 shadow-2xl backdrop-blur-sm">
+                <textarea 
+                  value={idea}
+                  onChange={(e) => setIdea(e.target.value)}
+                  placeholder={inputType === 'idea' ? "Ex: Um 'Airbnb' para aluguel de equipamentos de filmagem profissionais..." : "https://minha-empresa.com"}
+                  className="w-full bg-transparent border-none p-4 text-lg text-white placeholder-slate-500 outline-none resize-none font-medium"
+                  rows={inputType === 'idea' ? 3 : 1}
+                />
+              </div>
+              
+              <div className="flex justify-center mt-8">
+                <button type="submit" disabled={!idea.trim()} className="relative overflow-hidden w-full md:w-auto bg-white text-black hover:bg-slate-200 px-12 py-4 rounded-xl font-bold transition-all transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-3 shadow-xl text-lg group">
+                   <span className="relative z-10 flex items-center gap-2">Iniciar Análise <Zap className="w-5 h-5 text-yellow-600 fill-current" /></span>
+                </button>
+              </div>
             </form>
           </div>
         )}
 
-        {/* LOADING SCREENS */}
-        {(step === 'analyzing_feasibility' || step === 'analyzing_full') && (
-          <div className="flex flex-col items-center justify-center min-h-[50vh]">
-            <Loader2 className="w-12 h-12 text-purple-500 animate-spin mb-6" />
-            <h2 className="text-2xl font-bold animate-pulse">
-              {step === 'analyzing_feasibility' ? 'Consultando Investidores IA...' : 'Construindo sua Empresa...'}
-            </h2>
-            <div className="w-64 h-1 bg-slate-800 rounded-full mt-6 overflow-hidden">
-               <div className="h-full bg-gradient-to-r from-purple-500 to-pink-500 animate-[loading_2s_ease-in-out_infinite]"></div>
+        {/* === LOADING SCREENS === */}
+        {(step === 'analyzing_feasibility' || step === 'analyzing_plan') && (
+          <div className="flex flex-col items-center justify-center min-h-[60vh]">
+            <div className="relative">
+               <div className="absolute inset-0 bg-purple-500 blur-2xl opacity-20 animate-pulse"></div>
+               <Loader2 className="w-16 h-16 text-purple-500 animate-spin relative z-10" />
             </div>
-            <p className="text-slate-500 mt-2 text-sm">
-              {step === 'analyzing_feasibility' ? 'Analisando Mercado • Riscos • Potencial' : 'Gerando Site • Criando Orçamento • Escrevendo Business Plan'}
+            <h2 className="text-3xl font-bold mt-8 mb-2">
+              {step === 'analyzing_feasibility' ? 'Analisando Mercado...' : 'Desenvolvendo Estratégia...'}
+            </h2>
+            <p className="text-slate-500 text-lg">
+              {step === 'analyzing_feasibility' ? 'Nossa IA está consultando tendências e concorrentes.' : 'Criando Business Plan, Branding e Estrutura Financeira.'}
             </p>
           </div>
         )}
 
-        {/* STEP 2: FEASIBILITY RESULT */}
+        {/* === FEASIBILITY RESULT === */}
         {step === 'feasibility_result' && feasibility && (
           <div className="max-w-4xl mx-auto animate-in fade-in zoom-in duration-500">
-             <div className="text-center mb-8">
-               <span className="text-slate-500 uppercase tracking-widest text-xs font-bold">Veredito da IA</span>
-               <h2 className="text-4xl font-black mt-2">Análise de Viabilidade</h2>
+             <div className="text-center mb-12">
+               <h2 className="text-4xl font-black mb-2">Análise de Viabilidade</h2>
+               <p className="text-slate-400">O primeiro passo antes de investir.</p>
              </div>
 
              <div className="grid md:grid-cols-2 gap-8 mb-8">
                 {/* Score Card */}
-                <div className="bg-slate-900/50 border border-slate-800 p-8 rounded-3xl flex flex-col items-center justify-center text-center relative overflow-hidden">
-                   <div className={`absolute inset-0 opacity-20 blur-3xl ${feasibility.score > 70 ? 'bg-green-500' : feasibility.score > 40 ? 'bg-yellow-500' : 'bg-red-500'}`}></div>
-                   <div className="text-6xl font-black mb-2 relative z-10">{feasibility.score}/100</div>
-                   <div className={`px-4 py-1 rounded-full text-sm font-bold uppercase tracking-wider relative z-10 ${
-                     feasibility.verdict === 'Aprovado' ? 'bg-green-500/20 text-green-400' : 
-                     feasibility.verdict === 'Reprovado' ? 'bg-red-500/20 text-red-400' : 'bg-yellow-500/20 text-yellow-400'
+                <div className="bg-slate-900 border border-slate-800 p-10 rounded-3xl flex flex-col items-center justify-center text-center relative overflow-hidden shadow-2xl">
+                   <div className={`absolute inset-0 opacity-10 blur-[80px] ${feasibility.score > 70 ? 'bg-green-500' : feasibility.score > 30 ? 'bg-yellow-500' : 'bg-red-500'}`}></div>
+                   <div className="text-7xl font-black mb-4 relative z-10 text-white">{feasibility.score}</div>
+                   <div className={`px-4 py-1.5 rounded-full text-sm font-bold uppercase tracking-wider relative z-10 border ${
+                     feasibility.verdict === 'Aprovado' ? 'bg-green-500/10 text-green-400 border-green-500/20' : 
+                     feasibility.verdict === 'Reprovado' ? 'bg-red-500/10 text-red-400 border-red-500/20' : 'bg-yellow-500/10 text-yellow-400 border-yellow-500/20'
                    }`}>
                      {feasibility.verdict}
                    </div>
-                   <p className="text-slate-400 mt-6 italic">"{feasibility.summary}"</p>
+                   <p className="text-slate-400 mt-8 italic text-lg leading-relaxed">"{feasibility.summary}"</p>
                 </div>
 
-                {/* Pros & Cons */}
+                {/* Details */}
                 <div className="space-y-4">
-                   <div className="bg-slate-900/50 border border-slate-800 p-6 rounded-2xl">
-                      <h3 className="text-green-400 font-bold mb-3 flex items-center gap-2"><CheckCircle className="w-4 h-4" /> Pontos Fortes</h3>
-                      <ul className="space-y-2">
-                        {feasibility.strengths.map((s, i) => <li key={i} className="text-slate-300 text-sm">• {s}</li>)}
+                   <div className="bg-slate-900/80 border border-slate-800 p-6 rounded-2xl backdrop-blur-sm">
+                      <h3 className="text-green-400 font-bold mb-4 flex items-center gap-2"><CheckCircle className="w-5 h-5" /> Pontos Fortes</h3>
+                      <ul className="space-y-3">
+                        {feasibility.strengths.map((s, i) => <li key={i} className="text-slate-300 text-sm flex gap-2"><span className="text-green-500/50">•</span> {s}</li>)}
                       </ul>
                    </div>
-                   <div className="bg-slate-900/50 border border-slate-800 p-6 rounded-2xl">
-                      <h3 className="text-red-400 font-bold mb-3 flex items-center gap-2"><XCircle className="w-4 h-4" /> Pontos Fracos</h3>
-                      <ul className="space-y-2">
-                        {feasibility.weaknesses.map((w, i) => <li key={i} className="text-slate-300 text-sm">• {w}</li>)}
+                   <div className="bg-slate-900/80 border border-slate-800 p-6 rounded-2xl backdrop-blur-sm">
+                      <h3 className="text-red-400 font-bold mb-4 flex items-center gap-2"><XCircle className="w-5 h-5" /> Riscos & Desafios</h3>
+                      <ul className="space-y-3">
+                        {feasibility.weaknesses.map((w, i) => <li key={i} className="text-slate-300 text-sm flex gap-2"><span className="text-red-500/50">•</span> {w}</li>)}
                       </ul>
                    </div>
                 </div>
              </div>
 
-             <div className="flex justify-center gap-4">
+             {feasibility.pivotAdvice && (
+               <div className="bg-blue-900/10 border border-blue-500/20 p-6 rounded-2xl mb-8 animate-in slide-in-from-bottom-2">
+                 <h3 className="text-blue-400 font-bold mb-3 flex items-center gap-2">
+                   <Lightbulb className="w-5 h-5" /> Recomendação Estratégica
+                 </h3>
+                 <p className="text-slate-300 leading-relaxed text-sm whitespace-pre-line">
+                   {feasibility.pivotAdvice}
+                 </p>
+               </div>
+             )}
+
+             <div className="flex justify-center gap-4 mt-8">
                 <button onClick={() => setStep('input')} className="px-6 py-3 rounded-xl border border-slate-700 text-slate-300 hover:text-white hover:bg-slate-800 transition-colors">
-                  Testar Outra Ideia
+                  Nova Análise
                 </button>
-                {feasibility.verdict !== 'Reprovado' && (
-                  <button onClick={handleFullGeneration} className="px-8 py-3 rounded-xl bg-white text-black font-bold hover:bg-purple-50 shadow-lg shadow-white/10 transition-transform transform hover:scale-105 flex items-center gap-2">
-                    Acelerar Startup (Plano Completo) <ArrowRight className="w-4 h-4" />
+                {feasibility.score >= 30 && (
+                  <button onClick={handlePlanGeneration} className="px-8 py-3 rounded-xl bg-white text-black font-bold hover:bg-purple-50 shadow-lg shadow-white/10 transition-transform transform hover:scale-105 flex items-center gap-2">
+                    Gerar Plano & Site <ArrowRight className="w-4 h-4" />
                   </button>
                 )}
              </div>
           </div>
         )}
 
-        {/* STEP 3: FULL RESULT */}
+        {/* === FULL RESULT (STRATEGY + WEBSITE) === */}
         {step === 'full_result' && fullResult && (
-          <div className="animate-in fade-in zoom-in duration-500">
-            {/* Startup Header */}
-            <div className="bg-slate-900/50 border border-slate-800 rounded-3xl p-8 mb-8 flex flex-col md:flex-row items-center gap-8 shadow-2xl relative overflow-hidden">
-               <div className="absolute top-0 right-0 w-96 h-96 bg-purple-600/10 rounded-full blur-[100px] -z-10"></div>
-               
-               <div className="w-32 h-32 md:w-40 md:h-40 rounded-2xl bg-black border border-slate-700 p-4 flex items-center justify-center shrink-0 shadow-xl"
-                    dangerouslySetInnerHTML={{ __html: fullResult.logoSvg }}
-               ></div>
+          <div className="animate-in fade-in zoom-in duration-500 pb-20">
+            
+            {/* Header / Branding */}
+            <div className="flex flex-col md:flex-row items-center gap-8 mb-12 p-8 rounded-3xl bg-slate-900/40 border border-slate-800 relative overflow-hidden">
+                <div className="absolute top-0 right-0 w-96 h-96 bg-purple-600/10 rounded-full blur-[100px] -z-10"></div>
+                <div className="w-32 h-32 rounded-2xl bg-black border border-slate-700 p-4 flex items-center justify-center shrink-0 shadow-2xl" dangerouslySetInnerHTML={{ __html: fullResult.logoSvg }}></div>
+                <div className="text-center md:text-left">
+                    <h1 className="text-5xl font-black tracking-tight text-white mb-2">{fullResult.name}</h1>
+                    <p className="text-xl text-purple-400 font-medium italic">"{fullResult.slogan}"</p>
+                </div>
+            </div>
 
-               <div className="text-center md:text-left flex-1">
-                 <h1 className="text-4xl md:text-6xl font-black mb-2 tracking-tight">{fullResult.name}</h1>
-                 <p className="text-xl text-purple-400 font-medium italic mb-4">"{fullResult.slogan}"</p>
-                 <div className="flex flex-wrap justify-center md:justify-start gap-3">
-                    {fullResult.colors.map((color, i) => (
-                      <div key={i} className="flex items-center gap-2 bg-slate-800/80 px-3 py-1.5 rounded-lg border border-slate-700">
-                        <div className="w-4 h-4 rounded-full shadow-sm" style={{ backgroundColor: color }}></div>
-                        <span className="text-xs font-mono text-slate-400">{color}</span>
-                      </div>
-                    ))}
-                 </div>
+            {/* Navigation Tabs */}
+            <div className="flex justify-center mb-10">
+               <div className="bg-slate-900 p-1.5 rounded-2xl border border-slate-800 inline-flex">
+                 <button onClick={() => setActiveTab('business')} className={`px-6 py-3 rounded-xl font-bold text-sm transition-all flex items-center gap-2 ${activeTab === 'business' ? 'bg-slate-800 text-white shadow-lg' : 'text-slate-500 hover:text-white'}`}>
+                    <Layout className="w-4 h-4" /> Plano de Negócios
+                 </button>
+                 <button onClick={() => setActiveTab('budget')} className={`px-6 py-3 rounded-xl font-bold text-sm transition-all flex items-center gap-2 ${activeTab === 'budget' ? 'bg-green-900/20 text-green-400 border border-green-500/20' : 'text-slate-500 hover:text-white'}`}>
+                    <DollarSign className="w-4 h-4" /> Investimento
+                 </button>
+                 <button onClick={handleWebsiteTabClick} className={`px-6 py-3 rounded-xl font-bold text-sm transition-all flex items-center gap-2 ${activeTab === 'website' ? 'bg-purple-600 text-white shadow-lg' : 'text-slate-500 hover:text-white'}`}>
+                    <Code className="w-4 h-4" /> Website & Design
+                 </button>
                </div>
             </div>
 
-            {/* TABS NAVIGATION */}
-            <div className="flex justify-center mb-8 bg-slate-900/50 p-1.5 rounded-xl w-fit mx-auto border border-slate-800">
-               <button 
-                onClick={() => setActiveTab('business')}
-                className={`px-6 py-2 rounded-lg font-bold text-sm transition-all flex items-center gap-2 ${activeTab === 'business' ? 'bg-slate-700 text-white shadow-lg' : 'text-slate-400 hover:text-white'}`}
-               >
-                 <Layout className="w-4 h-4" /> Plano de Negócios
-               </button>
-               <button 
-                onClick={() => setActiveTab('budget')}
-                className={`px-6 py-2 rounded-lg font-bold text-sm transition-all flex items-center gap-2 ${activeTab === 'budget' ? 'bg-green-600/20 text-green-400 border border-green-600/30' : 'text-slate-400 hover:text-white'}`}
-               >
-                 <DollarSign className="w-4 h-4" /> Orçamento & MVP
-               </button>
-               <button 
-                onClick={() => setActiveTab('website')}
-                className={`px-6 py-2 rounded-lg font-bold text-sm transition-all flex items-center gap-2 ${activeTab === 'website' ? 'bg-purple-600 text-white shadow-lg' : 'text-slate-400 hover:text-white'}`}
-               >
-                 <Code className="w-4 h-4" /> Landing Page
-               </button>
-            </div>
-
-            {/* TAB CONTENT */}
-            
-            {/* 1. BUSINESS PLAN */}
+            {/* === TAB 1: BUSINESS PLAN DASHBOARD === */}
             {activeTab === 'business' && (
-              <div className="grid md:grid-cols-2 gap-6 animate-in slide-in-from-bottom-2">
-                 <div className="space-y-6">
-                    <div className="bg-slate-900/50 p-6 rounded-2xl border border-slate-800">
-                      <h3 className="font-bold text-white mb-4 flex items-center gap-2"><Target className="w-5 h-5 text-blue-500" /> Público Alvo</h3>
-                      <p className="text-slate-400 leading-relaxed text-sm">{fullResult.targetAudience}</p>
+              <div className="grid md:grid-cols-3 gap-6 animate-in slide-in-from-bottom-4">
+                 {/* Card: Problem */}
+                 <div className="bg-slate-900/50 border border-slate-800 p-6 rounded-2xl hover:border-slate-700 transition-colors">
+                    <div className="w-10 h-10 rounded-lg bg-red-500/10 flex items-center justify-center mb-4">
+                       <AlertTriangle className="w-5 h-5 text-red-400" />
                     </div>
-                    <div className="bg-slate-900/50 p-6 rounded-2xl border border-slate-800">
-                      <h3 className="font-bold text-white mb-4 flex items-center gap-2"><TrendingUp className="w-5 h-5 text-green-500" /> Modelo de Receita</h3>
-                      <p className="text-slate-400 leading-relaxed text-sm">{fullResult.revenueModel}</p>
-                    </div>
+                    <h3 className="text-lg font-bold text-white mb-2">O Problema</h3>
+                    <p className="text-slate-400 text-sm leading-relaxed">{fullResult.problem}</p>
                  </div>
-                 <div className="space-y-6">
-                    <div className="bg-slate-900/50 p-6 rounded-2xl border border-slate-800 h-full">
-                       <h3 className="font-bold text-white mb-4 flex items-center gap-2"><Rocket className="w-5 h-5 text-purple-500" /> Estratégia de Marketing</h3>
-                       <p className="text-slate-400 leading-relaxed text-sm">{fullResult.marketingStrategy}</p>
+
+                 {/* Card: Solution */}
+                 <div className="bg-slate-900/50 border border-slate-800 p-6 rounded-2xl hover:border-slate-700 transition-colors md:col-span-2 bg-gradient-to-br from-slate-900/50 to-blue-900/10">
+                    <div className="w-10 h-10 rounded-lg bg-blue-500/10 flex items-center justify-center mb-4">
+                       <Zap className="w-5 h-5 text-blue-400" />
                     </div>
+                    <h3 className="text-lg font-bold text-white mb-2">A Solução</h3>
+                    <p className="text-slate-300 text-sm leading-relaxed">{fullResult.solution}</p>
+                 </div>
+
+                 {/* Card: Market */}
+                 <div className="bg-slate-900/50 border border-slate-800 p-6 rounded-2xl hover:border-slate-700 transition-colors">
+                    <div className="w-10 h-10 rounded-lg bg-yellow-500/10 flex items-center justify-center mb-4">
+                       <PieChart className="w-5 h-5 text-yellow-400" />
+                    </div>
+                    <h3 className="text-lg font-bold text-white mb-2">Mercado (TAM/SAM)</h3>
+                    <p className="text-slate-400 text-sm leading-relaxed">{fullResult.marketSize}</p>
+                 </div>
+
+                 {/* Card: Monetization */}
+                 <div className="bg-slate-900/50 border border-slate-800 p-6 rounded-2xl hover:border-slate-700 transition-colors">
+                    <div className="w-10 h-10 rounded-lg bg-green-500/10 flex items-center justify-center mb-4">
+                       <DollarSign className="w-5 h-5 text-green-400" />
+                    </div>
+                    <h3 className="text-lg font-bold text-white mb-2">Monetização</h3>
+                    <p className="text-slate-400 text-sm leading-relaxed">{fullResult.monetization}</p>
+                 </div>
+
+                 {/* Card: Competitors */}
+                 <div className="bg-slate-900/50 border border-slate-800 p-6 rounded-2xl hover:border-slate-700 transition-colors">
+                    <div className="w-10 h-10 rounded-lg bg-purple-500/10 flex items-center justify-center mb-4">
+                       <Sword className="w-5 h-5 text-purple-400" />
+                    </div>
+                    <h3 className="text-lg font-bold text-white mb-2">Concorrentes</h3>
+                    <ul className="space-y-1">
+                      {fullResult.competitors.map((c, i) => (
+                        <li key={i} className="text-slate-400 text-sm">• {c}</li>
+                      ))}
+                    </ul>
+                 </div>
+
+                 {/* Card: Strategy */}
+                 <div className="bg-slate-900/50 border border-slate-800 p-6 rounded-2xl hover:border-slate-700 transition-colors md:col-span-3">
+                    <div className="w-10 h-10 rounded-lg bg-orange-500/10 flex items-center justify-center mb-4">
+                       <TrendingUp className="w-5 h-5 text-orange-400" />
+                    </div>
+                    <h3 className="text-lg font-bold text-white mb-2">Estratégia de Growth</h3>
+                    <p className="text-slate-400 text-sm leading-relaxed">{fullResult.marketingStrategy}</p>
                  </div>
               </div>
             )}
 
-            {/* 2. BUDGET (COMPARISON) */}
+            {/* === TAB 2: BUDGETS === */}
             {activeTab === 'budget' && (
-              <div className="grid md:grid-cols-2 gap-8 animate-in slide-in-from-bottom-2">
-                 {/* MVP Option */}
-                 <div className="bg-slate-900/50 border border-slate-700 rounded-3xl p-8 relative overflow-hidden group hover:border-blue-500/50 transition-colors">
-                    <div className="absolute top-0 left-0 w-full h-1 bg-blue-500"></div>
-                    <div className="text-sm font-bold text-blue-400 uppercase tracking-widest mb-2">Opção 1: MVP</div>
-                    <h3 className="text-3xl font-black text-white mb-4">Mínimo Viável</h3>
-                    <div className="text-4xl font-bold text-white mb-6">{fullResult.budgets.mvp.range}</div>
-                    
-                    <div className="space-y-4 mb-8">
-                       <div className="flex gap-3 text-slate-400 text-sm">
-                          <CheckCircle className="w-5 h-5 text-blue-500 shrink-0" />
-                          {fullResult.budgets.mvp.description}
-                       </div>
-                       <div className="flex gap-3 text-slate-400 text-sm">
-                          <CheckCircle className="w-5 h-5 text-blue-500 shrink-0" />
-                          Prazo: {fullResult.budgets.mvp.timeline}
-                       </div>
+              <div className="grid md:grid-cols-2 gap-8 animate-in slide-in-from-bottom-4">
+                 {/* MVP Card */}
+                 <div className="group bg-slate-900 border border-slate-800 hover:border-slate-600 rounded-3xl p-8 transition-all relative overflow-hidden">
+                    <div className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-4">Fase 1: Validação</div>
+                    <h3 className="text-3xl font-black text-white mb-2">MVP</h3>
+                    <div className="text-4xl font-bold text-slate-200 mb-6">{fullResult.budgets.mvp.range}</div>
+                    <p className="text-slate-400 text-sm mb-6 min-h-[60px]">{fullResult.budgets.mvp.description}</p>
+                    <div className="bg-slate-800/50 p-3 rounded-xl mb-8 flex items-center gap-3">
+                        <Code className="w-4 h-4 text-slate-400" />
+                        <span className="text-xs text-slate-400 font-mono">Prazo estimado: {fullResult.budgets.mvp.timeline}</span>
                     </div>
+                    <button onClick={() => handleConversion('MVP')} className="w-full py-4 rounded-xl border border-white/20 text-white font-bold hover:bg-white hover:text-black transition-colors flex items-center justify-center gap-2">
+                       Solicitar Orçamento MVP
+                    </button>
                  </div>
 
-                 {/* Ideal Option */}
-                 <div className="bg-gradient-to-b from-purple-900/20 to-slate-900/50 border border-purple-500/50 rounded-3xl p-8 relative overflow-hidden shadow-2xl">
-                    <div className="absolute top-0 right-0 bg-purple-600 text-white text-xs font-bold px-3 py-1 rounded-bl-lg">RECOMENDADO</div>
-                    <div className="text-sm font-bold text-purple-400 uppercase tracking-widest mb-2">Opção 2: Escala</div>
-                    <h3 className="text-3xl font-black text-white mb-4">Produto Ideal</h3>
+                 {/* Ideal Card */}
+                 <div className="group bg-gradient-to-b from-purple-900/20 to-black border border-purple-500/30 rounded-3xl p-8 transition-all relative overflow-hidden shadow-2xl">
+                    <div className="absolute top-0 right-0 bg-purple-600 text-white text-[10px] font-bold px-3 py-1 rounded-bl-lg uppercase">Recomendado</div>
+                    <div className="text-xs font-bold text-purple-400 uppercase tracking-widest mb-4">Fase 2: Escala</div>
+                    <h3 className="text-3xl font-black text-white mb-2">Produto Ideal</h3>
                     <div className="text-4xl font-bold text-white mb-6">{fullResult.budgets.ideal.range}</div>
-                    
-                    <div className="space-y-4 mb-8">
-                       <div className="flex gap-3 text-slate-300 text-sm">
-                          <CheckCircle className="w-5 h-5 text-purple-500 shrink-0" />
-                          {fullResult.budgets.ideal.description}
-                       </div>
-                       <div className="flex gap-3 text-slate-300 text-sm">
-                          <CheckCircle className="w-5 h-5 text-purple-500 shrink-0" />
-                          Prazo: {fullResult.budgets.ideal.timeline}
-                       </div>
+                    <p className="text-slate-300 text-sm mb-6 min-h-[60px]">{fullResult.budgets.ideal.description}</p>
+                    <div className="bg-purple-900/20 border border-purple-500/20 p-3 rounded-xl mb-8 flex items-center gap-3">
+                        <ShieldCheck className="w-4 h-4 text-purple-400" />
+                        <span className="text-xs text-purple-200 font-mono">Prazo estimado: {fullResult.budgets.ideal.timeline}</span>
                     </div>
-
-                    <button 
-                      onClick={() => onNavigate('contact')}
-                      className="w-full py-4 bg-white text-black font-bold rounded-xl hover:bg-purple-50 transition-colors flex items-center justify-center gap-2"
-                    >
-                      <MessageCircle className="w-5 h-5" /> Solicitar Orçamento Real
+                    <button onClick={() => handleConversion('Ideal')} className="w-full py-4 rounded-xl bg-white text-black font-bold hover:bg-purple-50 transition-colors flex items-center justify-center gap-2 shadow-lg shadow-purple-900/20">
+                       <Zap className="w-4 h-4 text-purple-600 fill-current" /> Solicitar Orçamento Completo
                     </button>
                  </div>
               </div>
             )}
 
-            {/* 3. WEBSITE PREVIEW - CORREÇÃO: Container com Scroll Interno & Event Delegation */}
+            {/* === TAB 3: WEBSITE (LAZY LOADED) === */}
             {activeTab === 'website' && (
-              <div className="animate-in slide-in-from-bottom-2">
-                <div className="bg-white rounded-3xl overflow-hidden shadow-2xl border border-slate-800 h-[80vh] flex flex-col relative">
-                    
-                    {/* Browser Mockup Header (Fixed) */}
-                    <div className="bg-slate-100 border-b border-slate-200 px-4 py-3 flex items-center gap-4 shrink-0 z-10">
-                      <div className="flex gap-2">
-                        <div className="w-3 h-3 rounded-full bg-red-400"></div>
-                        <div className="w-3 h-3 rounded-full bg-yellow-400"></div>
-                        <div className="w-3 h-3 rounded-full bg-green-400"></div>
-                      </div>
-                      <div className="bg-white px-4 py-1 rounded-md text-xs text-slate-500 flex-1 text-center shadow-sm font-mono">
-                          {fullResult.name.toLowerCase().replace(/\s/g, '')}.com
-                      </div>
+              <div className="animate-in slide-in-from-bottom-4 h-full">
+                {isLoadingWebsite ? (
+                  <div className="h-[60vh] flex flex-col items-center justify-center bg-slate-900/30 border border-slate-800 rounded-3xl">
+                     <Loader2 className="w-12 h-12 text-purple-500 animate-spin mb-6" />
+                     <h3 className="text-xl font-bold text-white">Gerando Design High-End...</h3>
+                     <p className="text-slate-500 text-sm mt-2">Nossa IA está escrevendo o código HTML & Tailwind.</p>
+                  </div>
+                ) : fullResult.websiteHtml ? (
+                  <div className="space-y-6">
+                    <div className="bg-white rounded-3xl overflow-hidden shadow-2xl border border-slate-800 h-[75vh] flex flex-col relative group">
+                        {/* Browser Header */}
+                        <div className="bg-slate-100 border-b border-slate-200 px-4 py-3 flex items-center gap-4 shrink-0 z-10">
+                           <div className="flex gap-2">
+                             <div className="w-3 h-3 rounded-full bg-red-400"></div>
+                             <div className="w-3 h-3 rounded-full bg-yellow-400"></div>
+                             <div className="w-3 h-3 rounded-full bg-green-400"></div>
+                           </div>
+                           <div className="bg-white px-4 py-1 rounded-md text-xs text-slate-500 flex-1 text-center shadow-sm font-mono truncate">
+                               {fullResult.name.toLowerCase().replace(/\s/g, '')}.com
+                           </div>
+                        </div>
+                        
+                        {/* Render HTML */}
+                        <div className="flex-1 overflow-y-auto bg-slate-950 relative custom-scrollbar">
+                           <div dangerouslySetInnerHTML={{ __html: fullResult.websiteHtml }} />
+                        </div>
+
+                        {/* Hover Overlay */}
+                        <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center pointer-events-none">
+                            <span className="text-white font-bold px-6 py-3 rounded-full bg-black border border-white/20 backdrop-blur-md">Pré-visualização do Conceito</span>
+                        </div>
                     </div>
                     
-                    {/* Rendered HTML - Scrollable Content with Click Interception */}
-                    <div 
-                      className="flex-1 overflow-y-auto bg-white relative custom-scrollbar cursor-default"
-                      onClick={handlePreviewClick} // INTERCEPTA TODOS OS CLIQUES AQUI
-                    >
-                         <div dangerouslySetInnerHTML={{ __html: fullResult.websiteHtml }} className="w-full text-black"></div>
-                         
-                         {/* Watermark at the bottom of content */}
-                         <div className="bg-slate-100 text-slate-500 py-4 text-center text-xs font-medium border-t border-slate-200 mt-auto">
-                           Design gerado por NexGen Startup Builder. Clique em qualquer botão do site para solicitar um orçamento.
-                         </div>
+                    <div className="text-center">
+                       <button onClick={() => handleConversion('Website')} className="px-8 py-3 bg-purple-600 hover:bg-purple-500 text-white rounded-xl font-bold transition-all shadow-lg shadow-purple-900/20 transform hover:scale-105">
+                         Gostei deste Design. Quero construir!
+                       </button>
                     </div>
-                    
-                </div>
-                <div className="text-center mt-6">
-                   <p className="text-slate-500 text-sm mb-4">Gostou deste site? Clique nos botões da pré-visualização ou abaixo para construir de verdade.</p>
-                   <button 
-                      onClick={() => onNavigate('contact')}
-                      className="px-8 py-3 bg-purple-600 hover:bg-purple-500 text-white rounded-xl font-bold transition-colors shadow-lg shadow-purple-900/20"
-                    >
-                      Quero este Site
-                    </button>
-                </div>
+                  </div>
+                ) : (
+                  <div className="text-center py-20">
+                    <p className="text-red-400">Erro ao carregar o site. Tente novamente.</p>
+                  </div>
+                )}
               </div>
             )}
 
@@ -393,30 +430,16 @@ const StartupBuilder: React.FC<StartupBuilderProps> = ({ onBack, onNavigate }) =
         )}
 
       </main>
-      
-      {/* Custom Scrollbar Styles for the Website Preview */}
+
+      {/* Scrollbar Utility */}
       <style>{`
-        .custom-scrollbar::-webkit-scrollbar {
-          width: 10px;
-        }
-        .custom-scrollbar::-webkit-scrollbar-track {
-          background: #f1f5f9;
-        }
-        .custom-scrollbar::-webkit-scrollbar-thumb {
-          background: #cbd5e1;
-          border-radius: 5px;
-        }
-        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-          background: #94a3b8;
-        }
+        .custom-scrollbar::-webkit-scrollbar { width: 8px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: #020617; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #334155; border-radius: 4px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #475569; }
       `}</style>
     </div>
   );
 };
 
 export default StartupBuilder;
-
-// Helper icons for dynamic usage if needed
-const ArrowRight = ({ className }: { className?: string }) => (
-  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
-);

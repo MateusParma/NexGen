@@ -1,6 +1,5 @@
-
 import React, { useState, useEffect } from 'react';
-import { Menu, X, Sparkles, User, Lock, LayoutDashboard, LogIn, Rocket } from 'lucide-react';
+import { Menu, X, User, Lock, LayoutDashboard, LogIn, Rocket } from 'lucide-react';
 import { PageView, User as UserType } from '../types';
 
 interface NavbarProps {
@@ -56,17 +55,25 @@ const Navbar: React.FC<NavbarProps> = ({ onNavigate, currentUser, onLogout }) =>
   ];
 
   return (
-    <nav className={`fixed w-full z-50 transition-all duration-300 ${isScrolled ? 'bg-dark/90 backdrop-blur-md shadow-lg py-4' : 'bg-transparent py-6'}`}>
+    <nav className={`fixed w-full z-50 transition-all duration-300 ${isScrolled ? 'bg-dark/90 backdrop-blur-md shadow-lg py-2' : 'bg-transparent py-4'}`}>
       <div className="container mx-auto px-6 flex justify-between items-center">
         <a 
           href="#home" 
           onClick={(e) => handleNavClick(e, 'home')}
-          className="flex items-center gap-2 text-2xl font-bold text-white tracking-tighter"
+          className="flex items-center gap-3"
         >
-          <div className="bg-primary p-1.5 rounded-lg">
-            <Sparkles className="w-6 h-6 text-white" />
+          <div className="relative w-[70px] h-[70px] flex items-center justify-center rounded-lg overflow-hidden">
+            <img 
+              src="https://github.com/MateusParma/NexGen/blob/main/3.png?raw=true" 
+              alt="NexGen Logo" 
+              className="w-full h-full object-contain"
+            />
           </div>
-          NexGen<span className="text-primary">Digital</span>
+          <img 
+            src="https://github.com/MateusParma/NexGen/blob/main/2.png?raw=true" 
+            alt="NexGen Digital"
+            className="h-20 object-contain"
+          />
         </a>
 
         {/* Desktop Menu */}

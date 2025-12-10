@@ -1,6 +1,5 @@
-
 import React, { useState, useRef, useEffect } from 'react';
-import { Bot, Send, ArrowLeft, Sparkles, Cpu, Activity, MessageSquare, Paperclip, X, Image as ImageIcon } from 'lucide-react';
+import { Send, ArrowLeft, Sparkles, Activity, MessageSquare, Paperclip, X, Cpu } from 'lucide-react';
 import { getAiConsultation } from '../services/geminiService';
 import { ChatMessage, Lead } from '../types';
 
@@ -84,7 +83,7 @@ const AiConsultantPage: React.FC<AiConsultantPageProps> = ({ onBack, onRegisterL
       </div>
 
       {/* Header */}
-      <header className="relative z-10 px-6 py-4 border-b border-slate-800 bg-black/50 backdrop-blur-md flex justify-between items-center shrink-0 h-20">
+      <header className="relative z-10 px-6 py-4 border-b border-slate-800 bg-black/50 backdrop-blur-md flex justify-between items-center shrink-0 h-24">
         <div className="flex items-center gap-4">
           <button 
             onClick={onBack}
@@ -93,11 +92,20 @@ const AiConsultantPage: React.FC<AiConsultantPageProps> = ({ onBack, onRegisterL
             <ArrowLeft className="w-5 h-5" />
           </button>
           <div>
-            <h1 className="text-xl font-bold flex items-center gap-2">
-              <div className="bg-primary/20 p-1.5 rounded-lg border border-primary/30">
-                <Bot className="w-5 h-5 text-primary" />
+            <h1 className="text-xl font-bold flex items-center gap-3">
+              <div className="w-[70px] h-[70px] rounded-lg overflow-hidden flex items-center justify-center">
+                <img 
+                  src="https://github.com/MateusParma/NexGen/blob/main/3.png?raw=true" 
+                  alt="NexGen Logo" 
+                  className="w-full h-full object-contain"
+                />
               </div>
-              NexGen <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-purple-500">AI Consultant</span>
+              <img 
+                src="https://github.com/MateusParma/NexGen/blob/main/2.png?raw=true" 
+                alt="NexGen AI"
+                className="h-16 object-contain"
+              />
+               <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-purple-500">AI Consultant</span>
             </h1>
           </div>
         </div>

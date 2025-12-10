@@ -1,4 +1,5 @@
 
+
 import { GoogleGenAI, FunctionDeclaration, Type } from "@google/genai";
 import { ChatMessage, Lead, ProjectIdea, ProposalData, StartupAnalysis, StartupFeasibility } from "../types";
 
@@ -315,77 +316,120 @@ export const generateProposal = async (project: ProjectIdea): Promise<{ success:
 
 /**
  * ETAPA 1: ANÁLISE DE VIABILIDADE (Shark Tank)
+ * Aceita Texto de Ideia OU URL de Site
  */
-export const analyzeFeasibility = async (idea: string): Promise<{ success: boolean; data?: StartupFeasibility; error?: string }> => {
+export const analyzeFeasibility = async (input: string): Promise<{ success: boolean; data?: StartupFeasibility; error?: string }> => {
   if (!ai) return { success: false, error: "Chave de API não configurada." };
 
   const prompt = `
     Aja como um Investidor de Venture Capital (Shark Tank) extremamente experiente e crítico.
     
-    IDEIA: "${idea}"
+    INPUT DO USUÁRIO: "${input}"
 
-    Avalie a viabilidade desta ideia para o mercado digital atual.
-    Seja honesto e direto. Não tenha medo de criticar se a ideia for ruim.
+    TAREFA:
+    1. Identifique se o input acima é uma IDEIA DE NEGÓCIO (texto) ou uma URL DE SITE existente.
+    2. Se for uma URL: Analise a proposta de valor provável desse site/negócio.
+    3. Se for uma Ideia: Analise a viabilidade.
+
+    Avalie o potencial para o mercado digital atual.
+    Seja honesto.
+
+    IMPORTANTE: 
+    - Se a pontuação (score) for menor que 80, o campo "pivotAdvice" é OBRIGATÓRIO.
+    - No "pivotAdvice", dê sugestões concretas de como pivotar, melhorar ou corrigir os problemas encontrados para tornar o negócio viável.
 
     Retorne APENAS um JSON com esta estrutura:
     {
       "score": (número de 0 a 100),
-      "verdict": "Aprovado" ou "Reprovado" ou "Incerto" (Use Aprovado apenas se score > 70),
+      "verdict": "Aprovado" ou "Reprovado" ou "Potencial" (Use Aprovado se score > 70, Potencial se > 40, Reprovado se < 40),
       "summary": "Um comentário curto (max 2 frases) com sua opinião direta sobre o potencial.",
       "strengths": ["Ponto forte 1", "Ponto forte 2", "Ponto forte 3"],
-      "weaknesses": ["Ponto fraco 1", "Ponto fraco 2", "Ponto fraco 3"]
+      "weaknesses": ["Ponto fraco 1", "Ponto fraco 2", "Ponto fraco 3"],
+      "pivotAdvice": "Se a nota for baixa, explique aqui o que fazer para salvar a ideia. Se for alta, pode deixar vazio ou dar dicas de escala."
     }
   `;
 
-  try {
-    const response = await ai.models.generateContent({
-      model: 'gemini-2.5-flash',
-      contents: prompt,
-      config: { responseMimeType: "application/json", temperature: 0.6 }
-    });
+  const cleanJson = (text: string) => {
+    return text.replace(/```json/g, '').replace(/```/g, '').trim();
+  };
 
-    let jsonText = response.text?.replace(/```json/g, '').replace(/```/g, '').trim() || "{}";
-    return { success: true, data: JSON.parse(jsonText) };
-  } catch (error) {
-    return { success: false, error: "Erro na análise de viabilidade." };
+  try {
+    // TENTATIVA 1: COM GOOGLE SEARCH (Para dados reais)
+    try {
+      const response = await ai.models.generateContent({
+        model: 'gemini-2.5-flash',
+        contents: prompt,
+        config: { 
+          responseMimeType: "application/json", 
+          temperature: 0.6,
+          tools: [{ googleSearch: {} }] 
+        }
+      });
+      
+      const jsonText = cleanJson(response.text || "{}");
+      return { success: true, data: JSON.parse(jsonText) };
+
+    } catch (searchError) {
+      console.warn("Google Search tool failed or conflict. Retrying without tool...", searchError);
+      
+      // TENTATIVA 2: FALLBACK (SEM FERRAMENTAS)
+      const fallbackResponse = await ai.models.generateContent({
+        model: 'gemini-2.5-flash',
+        contents: prompt,
+        config: { 
+          responseMimeType: "application/json", 
+          temperature: 0.6
+        }
+      });
+
+      const jsonText = cleanJson(fallbackResponse.text || "{}");
+      return { success: true, data: JSON.parse(jsonText) };
+    }
+
+  } catch (error: any) {
+    console.error("Erro fatal na análise de viabilidade:", error);
+    return { success: false, error: `Erro na análise: ${error.message || 'Falha na API'}` };
   }
 };
 
 /**
- * ETAPA 2: GERAÇÃO COMPLETA DA STARTUP (SPLIT STRATEGY)
- * Resolvemos o problema de timeout e JSON quebrado dividindo em 2 chamadas.
+ * FASE 2: GERAÇÃO DE PLANO DE NEGÓCIOS (Estratégia & Dados)
+ * NÃO GERA O HTML DO SITE AINDA (Lazy Loading)
  */
-export const generateFullStartup = async (idea: string): Promise<{ success: boolean; data?: StartupAnalysis; error?: string }> => {
+export const generateStartupPlan = async (idea: string, mode: 'idea' | 'website'): Promise<{ success: boolean; data?: StartupAnalysis; error?: string }> => {
   if (!ai) return { success: false, error: "Chave de API não configurada." };
 
-  // 1. GERAÇÃO DE DADOS DE NEGÓCIO (JSON)
-  const businessPrompt = `
-    Aja como um Cofundador Técnico e Diretor de Produto (CPO).
-    IDEIA APROVADA: "${idea}"
+  const prompt = `
+    Aja como um CPO e Estrategista Digital Sênior.
+    INPUT (${mode}): "${idea}"
     
-    TAREFA: Desenvolver a startup completa (Business Plan, Branding, Orçamentos).
+    TAREFA: 
+    Criar a estrutura estratégica completa de uma startup/negócio digital baseada no input.
+    FOCO: Dados de negócio, estratégia e branding. NÃO gere código HTML.
     
-    ESTRUTURA DO JSON (Estrita):
+    ESTRUTURA JSON (Estrita):
     {
-      "name": "Nome moderno e curto (Ex: Uber, Airbnb, Stripe)",
-      "slogan": "Slogan curto de impacto",
-      "description": "Pitch de 2 parágrafos vendendo a visão.",
-      "logoSvg": "Código SVG VÁLIDO (apenas a string <svg...>) para um ícone minimalista e moderno. ViewBox 0 0 100 100. Use cores vivas.",
-      "colors": ["Hex1", "Hex2", "Hex3"],
+      "name": "Nome moderno e curto (Ex: Vercel, Stripe, Linear). Se for redesign, mantenha ou sugira melhor.",
+      "slogan": "One-liner pitch impactante e focado em conversão.",
+      "logoSvg": "Código SVG VÁLIDO (apenas a string <svg...>) para um ícone tech minimalista e abstrato. ViewBox 0 0 100 100. Use cores sólidas.",
+      "colors": ["Hex1 (Principal)", "Hex2 (Secundária)", "Hex3 (Accento)"],
       
-      "targetAudience": "Definição do público alvo e persona.",
-      "revenueModel": "Como a empresa ganha dinheiro (SaaS, Ads, Marketplace, etc).",
-      "marketingStrategy": "Estratégia de Go-To-Market inicial.",
+      "problem": "Descrição clara da dor do usuário (1-2 frases).",
+      "solution": "Como o produto resolve isso de forma única (1-2 frases).",
+      "marketSize": "Estimativa do nicho (TAM/SAM) ou público-alvo.",
+      "competitors": ["Competidor A", "Competidor B", "Competidor C"],
+      "monetization": "Modelo de receita (SaaS, Ads, Marketplace, etc).",
+      "marketingStrategy": "Estratégia Go-To-Market resumida.",
 
       "budgets": {
         "mvp": { 
-          "range": "Ex: €2.000 - €4.000", 
-          "description": "Versão simplificada apenas com funcionalidades essenciais.", 
+          "range": "Ex: €2.500 - €4.000", 
+          "description": "Lançamento Rápido: Core features, Design funcional, Stack ágil.", 
           "timeline": "3-4 Semanas" 
         },
         "ideal": { 
-          "range": "Ex: €8.000 - €12.000", 
-          "description": "Produto completo com painel admin, app nativo e integrações.", 
+          "range": "Ex: €8.000 - €15.000", 
+          "description": "Produto Completo: App Mobile, Painel Admin, Integrações AI, Design System Premium.", 
           "timeline": "2-3 Meses" 
         }
       }
@@ -393,61 +437,75 @@ export const generateFullStartup = async (idea: string): Promise<{ success: bool
   `;
 
   try {
-    // --- Chamada 1: Dados de Negócio (JSON) ---
-    const businessResponse = await ai.models.generateContent({
+    const response = await ai.models.generateContent({
       model: 'gemini-2.5-flash',
-      contents: businessPrompt,
+      contents: prompt,
       config: { responseMimeType: "application/json", temperature: 0.7 }
     });
 
-    let jsonText = businessResponse.text?.replace(/```json/g, '').replace(/```/g, '').trim() || "{}";
-    const businessData = JSON.parse(jsonText) as Partial<StartupAnalysis>;
+    let jsonText = response.text?.replace(/```json/g, '').replace(/```/g, '').trim() || "{}";
+    const data = JSON.parse(jsonText) as StartupAnalysis;
+    return { success: true, data };
 
-    // --- Chamada 2: Geração de Site (HTML Puro) ---
-    // Isso evita que o HTML quebre o JSON da resposta anterior
-    const sitePrompt = `
-      Aja como um Desenvolvedor Frontend Sênior Especialista em Tailwind CSS.
-      
-      PROJETO: "${businessData.name}" - ${businessData.slogan}
-      CORES: ${businessData.colors?.join(', ')}
-      DESCRIÇÃO: ${businessData.description}
+  } catch (error: any) {
+    console.error("Erro na geração do plano:", error);
+    return { success: false, error: `Erro na geração do plano: ${error.message}` };
+  }
+};
 
-      TAREFA: Crie o código HTML COMPLETO para a Landing Page (Single Page).
+/**
+ * FASE 3: GERAÇÃO DO SITE (Lazy Loading)
+ * Gera APENAS o HTML visual "High-End" quando o usuário solicita.
+ */
+export const generateStartupWebsite = async (analysis: StartupAnalysis): Promise<{ success: boolean; html?: string; error?: string }> => {
+  if (!ai) return { success: false, error: "Chave de API ausente." };
+
+  const prompt = `
+      Aja como um UI Designer Premiado (Awwwards) especializado em SaaS Moderno.
       
+      CONTEXTO DO PROJETO:
+      Nome: "${analysis.name}"
+      Slogan: "${analysis.slogan}"
+      Cores: ${analysis.colors.join(', ')}
+      Problema: ${analysis.problem}
+      Solução: ${analysis.solution}
+
+      TAREFA:
+      Escreva o código HTML completo (usando Tailwind CSS via CDN) para uma Landing Page de Alta Conversão.
+      
+      ESTÉTICA OBRIGATÓRIA ("SaaS Dark Mode Premium"):
+      1. BACKGROUND: Use 'bg-slate-950' (quase preto) como base absoluta. NUNCA use fundo branco.
+      2. VIDRO (Glassmorphism): Use 'bg-white/5 backdrop-blur-lg border border-white/10' para cards e seções.
+      3. TIPOGRAFIA: Títulos gigantes ('text-5xl' a 'text-7xl'), fonte sans-serif, tracking-tight.
+      4. CORES: Use gradientes vibrantes (Ex: purple-500 to pink-500) para botões e textos de destaque ('bg-clip-text text-transparent').
+      5. BOTÕES: Botões com 'shadow-lg shadow-purple-500/30', arredondados ('rounded-full' ou 'rounded-xl').
+      6. BORDERS: Bordas finas e sutis ('border-white/5').
+
+      ESTRUTURA DA PÁGINA (Single Page):
+      1. HEADER: Logo (use texto estilizado), Nav Links, Botão CTA.
+      2. HERO SECTION: H1 Impactante, Subtítulo, 2 Botões (Primary/Secondary), e um "Mockup" abstrato feito com CSS/Divs (ex: um card inclinado com efeito de vidro).
+      3. BENTO GRID FEATURES: Uma grade (grid-cols-3) mostrando as funcionalidades principais em cards de vidro.
+      4. HOW IT WORKS: 3 Passos simples com ícones (use SVG inline simples ou lucide classes se o script permitir, mas prefira SVG inline para garantir render).
+      5. PRICING: 2 Cards (Starter vs Pro). Destaque o Pro com uma borda colorida.
+      6. CTA FINAL: Seção de fundo gradiente convidando para começar.
+      7. FOOTER: Minimalista.
+
       REGRAS TÉCNICAS:
-      - Use Tailwind CSS via CDN.
-      - NÃO use Markdown. Retorne APENAS o código HTML cru.
-      - NÃO coloque tags <html>, <head> ou <body>. Retorne apenas o conteúdo que vai dentro do body.
-      - Use 'min-h-screen' para permitir rolagem.
-      - O texto dos serviços deve ser REAL e PERSUASIVO (Proibido Lorem Ipsum).
-      - IMPORTANTE: Todos os botões (CTA) devem ter classes como 'cursor-pointer', 'hover:scale-105', 'transition-all' para parecerem clicáveis.
-      
-      ESTRUTURA:
-      1. <header> com Logo (Texto ${businessData.name}) e Nav. (Use container mx-auto).
-      2. <section id='hero'> Impactante com cores da marca.
-      3. <section id='features'> 3 Cards com ícones (pode usar emoji ou svg inline simples).
-      4. <section id='pricing'> Tabela de preços.
-      5. <footer>.
-    `;
+      - Retorne APENAS o código HTML do conteúdo do <body>. Não inclua <head> ou <html>.
+      - Use SVG inline para ícones para garantir que apareçam.
+      - Garanta contraste alto (Texto branco/cinza claro sobre fundo escuro).
+  `;
 
-    const siteResponse = await ai.models.generateContent({
-      model: 'gemini-2.5-flash',
-      contents: sitePrompt,
+  try {
+    const response = await ai.models.generateContent({
+      model: 'gemini-2.5-flash', // Modelo mais capaz para código longo e criativo
+      contents: prompt,
       config: { responseMimeType: "text/plain", temperature: 0.7 }
     });
 
-    const websiteHtml = siteResponse.text || "<p>Erro ao gerar site.</p>";
+    return { success: true, html: response.text };
 
-    // Junta tudo
-    const fullResult: StartupAnalysis = {
-      ...businessData as any,
-      websiteHtml: websiteHtml
-    };
-
-    return { success: true, data: fullResult };
-
-  } catch (error) {
-    console.error("Erro na geração completa:", error);
-    return { success: false, error: "Erro na geração completa. Tente novamente." };
+  } catch (error: any) {
+    return { success: false, error: error.message };
   }
 };

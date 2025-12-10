@@ -1,8 +1,8 @@
 
 import React, { useState } from 'react';
-import { Lead, User, UserRole, ProposalData } from '../types';
+import { Lead, User, UserRole, ProposalData, ProjectIdea } from '../types';
 import { generateProposal } from '../services/geminiService';
-import { ArrowLeft, Mail, Calendar, LogOut, Check, X, Phone, Shield, UserPlus, Search, Trash2, Edit, Save, Lock, Image as ImageIcon, Eye, FileText, Sparkles, Loader2, Printer, Wallet, ExternalLink, Paperclip, AlertTriangle, RefreshCcw, Briefcase, Zap, Clock, ShieldCheck, Target } from 'lucide-react';
+import { ArrowLeft, Mail, Calendar, LogOut, Check, X, Phone, Shield, UserPlus, Search, Trash2, Edit, Save, Lock, Image as ImageIcon, Eye, FileText, Sparkles, Loader2, Printer, Wallet, ExternalLink, Paperclip, AlertTriangle, RefreshCcw, Briefcase, Zap, Clock, ShieldCheck, Target, FilePlus } from 'lucide-react';
 
 interface AdminDashboardProps {
   leads: Lead[];
@@ -49,6 +49,10 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
   const [generationError, setGenerationError] = useState<string | null>(null);
   const [showProposalModal, setShowProposalModal] = useState(false);
   const [currentProposal, setCurrentProposal] = useState<ProposalData | null>(null);
+
+  // Manual Proposal Generation State
+  const [showManualProposalModal, setShowManualProposalModal] = useState(false);
+  const [manualProposalInput, setManualProposalInput] = useState({ clientName: '', projectTitle: '', projectDescription: '' });
 
   // --- Filter Logic ---
   const filteredLeads = leads.filter(l => 
@@ -100,6 +104,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
     }
   };
 
+  // --- Proposal Actions ---
   const handleGenerateProposal = async () => {
     if (!selectedLead?.projectData) {
         alert("Este lead não possui dados estruturados de projeto para gerar proposta.");
@@ -133,6 +138,48 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
         setGenerationError("Erro crítico na aplicação.");
     } finally {
         setIsGeneratingProposal(false);
+    }
+  };
+
+  const handleManualProposalGenerate = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsGeneratingProposal(true);
+    setGenerationError(null);
+
+    // Simula uma ProjectIdea com os dados manuais
+    const manualProject: ProjectIdea = {
+      id: 'manual',
+      title: manualProposalInput.projectTitle,
+      description: manualProposalInput.projectDescription,
+      features: ['A ser definido na proposta'],
+      createdAt: new Date(),
+      images: []
+    };
+
+    // Cria um lead temporário para exibir o nome do cliente no PDF
+    const tempLead: Lead = {
+      id: 'temp',
+      name: manualProposalInput.clientName,
+      contact: 'N/A',
+      interest: 'Manual Proposal',
+      createdAt: new Date(),
+      status: 'New'
+    };
+    setSelectedLead(tempLead); // Hack para usar o nome no visualizador
+
+    try {
+      const result = await generateProposal(manualProject);
+      if (result.success && result.data) {
+        setCurrentProposal(result.data);
+        setShowManualProposalModal(false);
+        setShowProposalModal(true);
+      } else {
+        alert(result.error || "Erro ao gerar proposta.");
+      }
+    } catch (error) {
+      alert("Erro crítico.");
+    } finally {
+      setIsGeneratingProposal(false);
     }
   };
 
@@ -206,6 +253,11 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
             />
           </div>
           <div className="flex gap-3">
+            {activeTab === 'leads' && (
+              <button onClick={() => setShowManualProposalModal(true)} className="flex items-center gap-2 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-500 hover:to-blue-500 text-white px-4 py-2 rounded-xl transition-colors font-medium shadow-lg">
+                <FilePlus className="w-4 h-4" /> Criar Proposta Manual
+              </button>
+            )}
             {activeTab === 'users' && (
               <button onClick={() => handleOpenUserModal()} className="flex items-center gap-2 bg-primary hover:bg-blue-600 text-white px-4 py-2 rounded-xl transition-colors font-medium shadow-lg shadow-blue-900/20">
                 <UserPlus className="w-4 h-4" /> Novo Usuário
@@ -330,7 +382,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
       </div>
 
       {/* --- LEAD DETAILS MODAL --- */}
-      {selectedLead && !showProposalModal && (
+      {selectedLead && !showProposalModal && !showManualProposalModal && (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-in fade-in duration-200 print:hidden">
           <div className="bg-slate-900 border border-slate-700 rounded-2xl w-full max-w-5xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
             <div className="p-6 border-b border-slate-800 flex justify-between items-center bg-slate-800/50 shrink-0">
@@ -441,6 +493,63 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
         </div>
       )}
 
+      {/* --- MANUAL PROPOSAL MODAL --- */}
+      {showManualProposalModal && (
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-in fade-in duration-200">
+           <div className="bg-slate-900 border border-slate-700 rounded-2xl w-full max-w-2xl shadow-2xl relative">
+              <div className="p-6 border-b border-slate-800 flex justify-between items-center">
+                 <h3 className="text-xl font-bold text-white flex items-center gap-2"><FilePlus className="w-5 h-5 text-purple-400" /> Criar Proposta Manual</h3>
+                 <button onClick={() => setShowManualProposalModal(false)} className="text-slate-500 hover:text-white"><X className="w-6 h-6" /></button>
+              </div>
+              <form onSubmit={handleManualProposalGenerate} className="p-6 space-y-4">
+                 <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                       <label className="text-xs font-bold text-slate-400 uppercase">Nome do Cliente</label>
+                       <input 
+                         required
+                         type="text" 
+                         value={manualProposalInput.clientName}
+                         onChange={e => setManualProposalInput({...manualProposalInput, clientName: e.target.value})}
+                         className="w-full bg-black/20 border border-slate-700 rounded-lg p-3 text-white focus:border-purple-500 outline-none" 
+                         placeholder="Ex: João Silva"
+                       />
+                    </div>
+                    <div className="space-y-2">
+                       <label className="text-xs font-bold text-slate-400 uppercase">Título do Projeto</label>
+                       <input 
+                         required
+                         type="text" 
+                         value={manualProposalInput.projectTitle}
+                         onChange={e => setManualProposalInput({...manualProposalInput, projectTitle: e.target.value})}
+                         className="w-full bg-black/20 border border-slate-700 rounded-lg p-3 text-white focus:border-purple-500 outline-none" 
+                         placeholder="Ex: App de Delivery"
+                       />
+                    </div>
+                 </div>
+                 <div className="space-y-2">
+                    <label className="text-xs font-bold text-slate-400 uppercase">Descrição Completa / Conteúdo do PDF</label>
+                    <textarea 
+                      required
+                      value={manualProposalInput.projectDescription}
+                      onChange={e => setManualProposalInput({...manualProposalInput, projectDescription: e.target.value})}
+                      className="w-full bg-black/20 border border-slate-700 rounded-lg p-3 text-white focus:border-purple-500 outline-none h-48"
+                      placeholder="Cole aqui todas as informações do projeto, emails, ou copie e cole o texto do PDF que o cliente enviou..."
+                    />
+                 </div>
+                 <div className="pt-2">
+                    <button 
+                       type="submit" 
+                       disabled={isGeneratingProposal}
+                       className="w-full py-4 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-500 hover:to-blue-500 text-white rounded-xl font-bold shadow-lg flex items-center justify-center gap-2 disabled:opacity-50"
+                    >
+                       {isGeneratingProposal ? <><Loader2 className="w-4 h-4 animate-spin" /> Analisando Texto e Gerando...</> : <><Sparkles className="w-4 h-4" /> Gerar Proposta com IA</>}
+                    </button>
+                 </div>
+              </form>
+           </div>
+        </div>
+      )}
+
       {/* --- PROPOSAL PDF VIEW (PREMIUM) --- */}
       {showProposalModal && currentProposal && (
          <div className="fixed inset-0 z-[100] bg-slate-900 overflow-y-auto">
@@ -470,11 +579,19 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
                   {/* HEADER WITH LOGO */}
                   <header className="flex justify-between items-center mb-12 border-b-2 border-slate-900 pb-6">
                      <div>
-                       <div className="flex items-center gap-2 text-3xl font-black text-slate-900 tracking-tighter">
-                         <div className="w-10 h-10 bg-slate-900 rounded-lg flex items-center justify-center">
-                            <Sparkles className="w-5 h-5 text-white" />
+                       <div className="flex items-center gap-3 text-3xl font-black text-slate-900 tracking-tighter">
+                         <div className="w-32 h-32 bg-slate-900 rounded-lg flex items-center justify-center border border-slate-700 overflow-hidden">
+                             <img 
+                               src="https://github.com/MateusParma/NexGen/blob/main/3.png?raw=true" 
+                               alt="NexGen Logo" 
+                               className="w-full h-full object-contain"
+                             />
                          </div>
-                         NexGen<span className="text-slate-400">Digital</span>
+                         <img 
+                            src="https://github.com/MateusParma/NexGen/blob/main/2.png?raw=true" 
+                            alt="NexGen Digital" 
+                            className="h-24 object-contain filter invert" 
+                         />
                        </div>
                      </div>
                      <div className="text-right text-xs uppercase tracking-widest font-bold text-slate-500">
@@ -541,8 +658,8 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
                          <div key={i} className="relative pl-8 pb-8 last:pb-0 break-inside-avoid">
                             <div className="absolute -left-1.5 top-1.5 w-3 h-3 bg-blue-600 rounded-full ring-4 ring-white"></div>
                             <div className="flex justify-between items-start mb-1">
-                               <h4 className="font-bold text-slate-900 text-lg">{item.phase}</h4>
-                               <span className="bg-slate-100 px-3 py-1 rounded text-xs font-bold text-slate-600">{item.duration}</span>
+                                <h4 className="font-bold text-slate-900 text-lg">{item.phase}</h4>
+                                <span className="bg-slate-100 px-3 py-1 rounded text-xs font-bold text-slate-600">{item.duration}</span>
                             </div>
                             <p className="text-sm text-slate-500">
                                <span className="font-semibold text-slate-700">Entrega:</span> {item.deliverable}

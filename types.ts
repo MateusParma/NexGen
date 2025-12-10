@@ -101,10 +101,11 @@ export interface Lead {
 
 export interface StartupFeasibility {
   score: number; // 0 a 100
-  verdict: "Aprovado" | "Reprovado" | "Incerto";
+  verdict: "Aprovado" | "Reprovado" | "Incerto" | "Potencial";
   summary: string; // Comentário estilo Shark Tank
   strengths: string[];
   weaknesses: string[];
+  pivotAdvice?: string; // Conselhos para melhorar ou pivotar
 }
 
 export interface StartupBudget {
@@ -121,20 +122,23 @@ export interface StartupBudget {
 }
 
 export interface StartupAnalysis {
+  // Branding
   name: string;
   slogan: string;
-  description: string;
   logoSvg: string; 
   colors: string[];
   
-  // Business Plan
-  targetAudience: string;
-  revenueModel: string;
+  // Strategic Data (Novos campos estruturados)
+  problem: string;
+  solution: string;
+  marketSize: string; // TAM/SAM/SOM or description
+  competitors: string[];
+  monetization: string; // Revenue Model
   marketingStrategy: string;
   
-  // Orçamentos
+  // Financials
   budgets: StartupBudget;
   
-  // Site
-  websiteHtml: string; // Landing Page Completa
+  // Lazy Loaded Visuals (Opcional - Fase 2)
+  websiteHtml?: string; 
 }
