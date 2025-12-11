@@ -64,7 +64,7 @@ const Navbar: React.FC<NavbarProps> = ({ onNavigate, currentUser, onLogout }) =>
         >
           <div className="relative w-[70px] h-[70px] flex items-center justify-center rounded-lg overflow-hidden">
             <img 
-              src="https://raw.githubusercontent.com/MateusParma/NexGen/main/3.png" 
+              src="https://github.com/MateusParma/NexGen/blob/main/3.png?raw=true" 
               alt="NexGen Logo" 
               className="w-full h-full object-contain"
             />
