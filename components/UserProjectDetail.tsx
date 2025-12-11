@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { ProjectIdea, User, Lead } from '../types';
 import { ArrowLeft, Printer, Calendar, Wallet, CheckCircle, ExternalLink, Sparkles, Edit3, Save, X, Send, Loader2, MessageCircle } from 'lucide-react';
@@ -167,13 +166,13 @@ const UserProjectDetail: React.FC<UserProjectDetailProps> = ({ project, currentU
               <div className="flex items-center gap-3 text-2xl font-bold text-blue-600 tracking-tighter mb-2">
                  <div className="w-32 h-32 bg-slate-900 rounded-lg flex items-center justify-center border border-slate-700 overflow-hidden">
                     <img 
-                      src="https://github.com/MateusParma/NexGen/blob/main/3.png?raw=true" 
+                      src="https://raw.githubusercontent.com/MateusParma/NexGen/main/3.png" 
                       alt="NexGen Logo" 
                       className="w-full h-full object-contain"
                     />
                  </div>
                  <img 
-                    src="https://github.com/MateusParma/NexGen/blob/main/2.png?raw=true" 
+                    src="https://github.com/MateusParma/NexGen/blob/main/1.png?raw=true" 
                     alt="NexGen Digital" 
                     className="h-24 object-contain filter invert" 
                  />

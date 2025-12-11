@@ -110,13 +110,13 @@ const StartupBuilder: React.FC<StartupBuilderProps> = ({ onBack, onNavigate }) =
           <div className="flex items-center gap-3">
             <div className="w-[70px] h-[70px] rounded-md overflow-hidden flex items-center justify-center">
                <img 
-                 src="https://github.com/MateusParma/NexGen/blob/main/3.png?raw=true" 
+                 src="https://raw.githubusercontent.com/MateusParma/NexGen/main/3.png" 
                  alt="NexGen Logo" 
                  className="w-full h-full object-contain"
                />
             </div>
              <img 
-                src="https://github.com/MateusParma/NexGen/blob/main/2.png?raw=true" 
+                src="https://github.com/MateusParma/NexGen/blob/main/1.png?raw=true" 
                 alt="NexGen"
                 className="h-16 object-contain"
               />

@@ -95,13 +95,13 @@ const AiConsultantPage: React.FC<AiConsultantPageProps> = ({ onBack, onRegisterL
             <h1 className="text-xl font-bold flex items-center gap-3">
               <div className="w-[70px] h-[70px] rounded-lg overflow-hidden flex items-center justify-center">
                 <img 
-                  src="https://github.com/MateusParma/NexGen/blob/main/3.png?raw=true" 
+                  src="https://raw.githubusercontent.com/MateusParma/NexGen/main/3.png" 
                   alt="NexGen Logo" 
                   className="w-full h-full object-contain"
                 />
               </div>
               <img 
-                src="https://github.com/MateusParma/NexGen/blob/main/2.png?raw=true" 
+                src="https://github.com/MateusParma/NexGen/blob/main/1.png?raw=true" 
                 alt="NexGen AI"
                 className="h-16 object-contain"
               />
