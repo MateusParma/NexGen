@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { ArrowLeft, ArrowRight, Sparkles, Loader2, Target, TrendingUp, AlertTriangle, Code, Play, CheckCircle, XCircle, DollarSign, Layout, Monitor, MessageCircle, Globe, Lightbulb, PieChart, Users, Sword, Zap, ShieldCheck, Rocket } from 'lucide-react';
 import { StartupAnalysis, StartupFeasibility } from '../types';
@@ -110,13 +111,13 @@ const StartupBuilder: React.FC<StartupBuilderProps> = ({ onBack, onNavigate }) =
           <div className="flex items-center gap-3">
             <div className="w-[70px] h-[70px] rounded-md overflow-hidden flex items-center justify-center">
                <img 
-                 src="https://raw.githubusercontent.com/MateusParma/NexGen/main/3.png" 
+                 src="https://github.com/MateusParma/nexgenimages/blob/main/Icone%20nexgen.png?raw=true" 
                  alt="NexGen Logo" 
                  className="w-full h-full object-contain"
                />
             </div>
              <img 
-                src="https://github.com/MateusParma/NexGen/blob/main/1.png?raw=true" 
+                src="https://github.com/MateusParma/nexgenimages/blob/main/Logo%20nexgen.png?raw=true" 
                 alt="NexGen"
                 className="h-16 object-contain"
               />

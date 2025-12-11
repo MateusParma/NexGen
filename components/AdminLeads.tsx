@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { Lead, User, UserRole, ProposalData, ProjectIdea } from '../types';
 import { generateProposal } from '../services/geminiService';
@@ -581,13 +582,13 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
                        <div className="flex items-center gap-3 text-3xl font-black text-slate-900 tracking-tighter">
                          <div className="w-32 h-32 bg-slate-900 rounded-lg flex items-center justify-center border border-slate-700 overflow-hidden">
                              <img 
-                               src="https://raw.githubusercontent.com/MateusParma/NexGen/main/3.png" 
+                               src="https://github.com/MateusParma/nexgenimages/blob/main/Icone%20nexgen.png?raw=true" 
                                alt="NexGen Logo" 
                                className="w-full h-full object-contain"
                              />
                          </div>
                          <img 
-                            src="https://github.com/MateusParma/NexGen/blob/main/1.png?raw=true" 
+                            src="https://github.com/MateusParma/nexgenimages/blob/main/Logo%20nexgen.png?raw=true" 
                             alt="NexGen Digital" 
                             className="h-24 object-contain filter invert" 
                          />

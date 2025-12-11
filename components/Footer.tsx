@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { Lock } from 'lucide-react';
 
@@ -12,13 +13,13 @@ const Footer: React.FC<FooterProps> = ({ onAdminClick }) => {
         <div className="flex items-center gap-3">
           <div className="relative w-[70px] h-[70px] flex items-center justify-center rounded-lg overflow-hidden">
             <img 
-              src="https://raw.githubusercontent.com/MateusParma/NexGen/main/3.png" 
+              src="https://github.com/MateusParma/nexgenimages/blob/main/Icone%20nexgen.png?raw=true" 
               alt="NexGen Logo" 
               className="w-full h-full object-contain"
             />
           </div>
           <img 
-            src="https://github.com/MateusParma/NexGen/blob/main/1.png?raw=true" 
+            src="https://github.com/MateusParma/nexgenimages/blob/main/Logo%20nexgen.png?raw=true" 
             alt="NexGen Digital"
             className="h-20 object-contain"
           />
