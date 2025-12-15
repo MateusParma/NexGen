@@ -2,7 +2,9 @@
 import React, { useState, useEffect } from 'react';
 import Navbar from './components/Navbar';
 import Hero from './components/Hero';
+import Partners from './components/Partners';
 import Services from './components/Services';
+import StarlinkSection from './components/StarlinkSection';
 import GraphicDesignSection from './components/GraphicDesignSection';
 import GoogleBusinessSection from './components/GoogleBusinessSection';
 import GeminiDemo from './components/GeminiDemo';
@@ -66,6 +68,13 @@ function App() {
     }
 
     setCurrentPage(page);
+  };
+
+  const scrollToContact = () => {
+    const contactSection = document.getElementById('contact');
+    if (contactSection) {
+      contactSection.scrollIntoView({ behavior: 'smooth' });
+    }
   };
 
   // --- LEAD MANAGEMENT ---
@@ -234,7 +243,9 @@ function App() {
         {currentPage === 'home' ? (
           <>
             <Hero onNavigate={handleNavigate} />
+            <Partners />
             <Services onNavigate={handleNavigate} />
+            <StarlinkSection onContactClick={scrollToContact} />
             <GraphicDesignSection currentUser={currentUser} />
             <GoogleBusinessSection />
             <GeminiDemo />
